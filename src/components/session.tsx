@@ -10,24 +10,19 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  Copy,
   Eye,
-  EyeOff,
-  GripHorizontal,
   Keyboard,
   Loader2,
   Mic,
-  Monitor,
   Play,
   Settings2,
-  Sparkles,
   Square,
 } from "lucide-react";
+import { CommandBar } from "@/components/command-bar";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { captureScreenJpeg } from "@/lib/capture";
-import { RichText } from "@/lib/rich-text";
 import {
   DEMO_ASSIST,
   DEMO_CUES,
@@ -40,8 +35,14 @@ import {
 import { runAssist } from "@/lib/gemini";
 import { PROVIDERS } from "@/lib/providers";
 import { saveMeeting } from "@/lib/meetings";
-import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from "@/lib/settings";
+import {
+  audioConstraints,
   blobToBase64,
   getSpeechRecognition,
   micErrorMessage,
@@ -51,20 +52,19 @@ import {
   type SpeechRecognitionLike,
 } from "@/lib/speech";
 import { transcribeChunk } from "@/lib/transcribe";
-import type { AssistAction, MeetingNotes, TranscriptLine } from "@/lib/types";
+import type {
+  AssistAction,
+  HistoryItem,
+  MeetingNotes,
+  TranscriptLine,
+} from "@/lib/types";
 import { cn, formatDuration, uid } from "@/lib/utils";
 
 type Mode = "idle" | "demo" | "mic";
-type OverlayTab = "assist" | "transcript";
 
 export function SessionApp() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<Settings>({
-    provider: "gemini",
-    apiKey: "",
-    model: "gemini-2.5-flash",
-    lang: "en-US",
-  });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [speechOk, setSpeechOk] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("idle");
@@ -72,11 +72,11 @@ export function SessionApp() {
   const [elapsed, setElapsed] = useState(0);
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [interim, setInterim] = useState("");
-  const [tab, setTab] = useState<OverlayTab>("assist");
   const [action, setAction] = useState<AssistAction | null>(null);
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [question, setQuestion] = useState("");
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [camera, setCamera] = useState<MediaStream | null>(null);
   const [ending, setEnding] = useState(false);
   const startedAt = useRef<number | null>(null);
@@ -92,6 +92,7 @@ export function SessionApp() {
   );
 
   const live = mode !== "idle";
+  const you = settings.displayName.trim() || "You";
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -121,6 +122,18 @@ export function SessionApp() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        if (mode === "idle") return;
+        setHidden(false);
+        void captureThenAssistRef.current();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === "\\" || e.code === "Backslash")) {
         e.preventDefault();
         if (mode === "idle") return;
@@ -160,6 +173,7 @@ export function SessionApp() {
     setLines([]);
     setAnswer("");
     setAction(null);
+    setHistory([]);
     setHidden(false);
     setMode("demo");
   };
@@ -170,16 +184,17 @@ export function SessionApp() {
       return;
     }
 
+    const micId = settingsRef.current.micId;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: audioConstraints(micId),
         video: { facingMode: "user" },
       });
     } catch {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
+          audio: audioConstraints(micId),
         });
       } catch (err) {
         toast.error(micErrorMessage(err));
@@ -197,6 +212,7 @@ export function SessionApp() {
     setLines([]);
     setAnswer("");
     setAction(null);
+    setHistory([]);
     setHidden(false);
     setMode("mic");
     setInterim("Listening…");
@@ -274,7 +290,7 @@ export function SessionApp() {
                 ...prev,
                 {
                   id: uid(),
-                  speaker: "You",
+                  speaker: s.displayName.trim() || "You",
                   text,
                   atMs: Date.now() - (startedAt.current ?? Date.now()),
                 },
@@ -300,15 +316,11 @@ export function SessionApp() {
     setInterim("");
   };
 
-  const transcriptText = useMemo(
-    () => formatTranscript(lines),
-    [lines],
-  );
+  const transcriptText = useMemo(() => formatTranscript(lines), [lines]);
 
   const runAction = useCallback(
     async (next: AssistAction, image?: string) => {
       if (!live) return;
-      setTab("assist");
       setBusy(true);
       setAction(next);
       setAnswer("");
@@ -323,15 +335,24 @@ export function SessionApp() {
             question: next === "ask" || next === "screen" ? question : undefined,
             transcript: transcriptText,
             image,
+            outputLang: settings.outputLang,
+            sessionMode: settings.sessionMode,
           },
         });
         if (!result.ok) {
           if (mode === "demo") {
             const canned =
-              next === "ask"
-                ? { text: demoAsk(question) }
-                : DEMO_ASSIST[next];
+              next === "ask" ? { text: demoAsk(question) } : DEMO_ASSIST[next];
             setAnswer(canned.text);
+            setHistory((h) => [
+              {
+                id: uid(),
+                action: next,
+                question: question || undefined,
+                text: canned.text,
+              },
+              ...h,
+            ].slice(0, 20));
             toast.message(result.error);
             return;
           }
@@ -340,12 +361,24 @@ export function SessionApp() {
           return;
         }
         setAnswer(result.text);
+        setHistory((h) =>
+          [
+            {
+              id: uid(),
+              action: next,
+              question: question || undefined,
+              text: result.text,
+            },
+            ...h,
+          ].slice(0, 20),
+        );
+        if (settings.notifyAssist && hidden) {
+          toast.success("Answer ready");
+        }
       } catch (err) {
         if (mode === "demo") {
           const canned =
-            next === "ask"
-              ? { text: demoAsk(question) }
-              : DEMO_ASSIST[next];
+            next === "ask" ? { text: demoAsk(question) } : DEMO_ASSIST[next];
           setAnswer(canned.text);
           return;
         }
@@ -354,12 +387,15 @@ export function SessionApp() {
         setBusy(false);
       }
     },
-    [live, mode, question, settings, transcriptText],
+    [live, mode, question, settings, transcriptText, hidden],
   );
 
   runActionRef.current = runAction;
 
-  async function captureThenAssist() {
+  const captureThenAssist = useCallback(async () => {
+    if (settingsRef.current.autoHideOnShare) {
+      toast.message("Share the meeting window only — not Veil.");
+    }
     try {
       const image = await captureScreenJpeg();
       await runAction("screen", image);
@@ -367,7 +403,6 @@ export function SessionApp() {
       if (mode === "demo") {
         setAction("screen");
         setAnswer(DEMO_ASSIST.screen.text);
-        setTab("assist");
         return;
       }
       const msg = err instanceof Error ? err.message : "Screen capture cancelled.";
@@ -377,7 +412,10 @@ export function SessionApp() {
       }
       toast.error(msg);
     }
-  }
+  }, [mode, runAction]);
+
+  const captureThenAssistRef = useRef(captureThenAssist);
+  captureThenAssistRef.current = captureThenAssist;
 
   async function endMeeting() {
     if (!live) return;
@@ -393,6 +431,8 @@ export function SessionApp() {
           model: settings.model,
           action: "notes",
           transcript: transcriptText,
+          outputLang: settings.outputLang,
+          sessionMode: settings.sessionMode,
         },
       });
       if (result.ok) {
@@ -428,7 +468,7 @@ export function SessionApp() {
   }
 
   return (
-    <div className="relative min-h-dvh bg-call text-call-foreground">
+    <div className="veil-desk relative min-h-dvh text-call-foreground">
       <header className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <Link
@@ -460,7 +500,7 @@ export function SessionApp() {
                 onClick={() => setHidden((h) => !h)}
                 aria-label={hidden ? "Show overlay" : "Hide overlay"}
               >
-                {hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                {hidden ? <Eye className="size-4" /> : <Eye className="size-4 opacity-50" />}
               </Button>
               <Button
                 variant="call"
@@ -484,7 +524,7 @@ export function SessionApp() {
         </div>
       </header>
 
-      <CallGrid camera={camera} videoRef={videoRef} />
+      <CallGrid camera={camera} videoRef={videoRef} you={you} />
 
       {mode === "idle" ? (
         <IdleGate
@@ -498,11 +538,9 @@ export function SessionApp() {
       ) : null}
 
       {live && !hidden ? (
-        <AssistOverlay
-          tab={tab}
-          onTab={setTab}
-          lines={lines}
-          interim={interim}
+        <CommandBar
+          live={live}
+          listening={mode === "mic"}
           busy={busy}
           action={action}
           answer={answer}
@@ -512,8 +550,15 @@ export function SessionApp() {
             if (a === "screen") void captureThenAssist();
             else void runAction(a);
           }}
-          hasKey={Boolean(settings.apiKey)}
-          providerShort={PROVIDERS[settings.provider].short}
+          onHide={() => setHidden(true)}
+          history={history}
+          onOpenHistory={(item) => {
+            setAction(item.action);
+            setAnswer(item.text);
+            if (item.question) setQuestion(item.question);
+          }}
+          lines={lines}
+          interim={interim}
         />
       ) : null}
 
@@ -521,11 +566,11 @@ export function SessionApp() {
         <button
           type="button"
           onClick={() => setHidden(false)}
-          className="fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-card px-4 py-2 text-sm text-foreground shadow-[var(--shadow-lift)]"
+          className="glass-panel fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm"
         >
           <Eye className="size-4" />
           Show Veil
-          <span className="hidden text-muted-foreground sm:inline">⌘\\</span>
+          <span className="hidden text-glass-muted sm:inline">⌘\\</span>
         </button>
       ) : null}
 
@@ -545,9 +590,11 @@ export function SessionApp() {
 function CallGrid({
   camera,
   videoRef,
+  you,
 }: {
   camera: MediaStream | null;
   videoRef: RefObject<HTMLVideoElement | null>;
+  you: string;
 }) {
   return (
     <div className="grid grid-cols-2 gap-2 px-3 pb-36 sm:gap-3 sm:px-5 lg:grid-cols-4 lg:pb-8">
@@ -583,7 +630,7 @@ function CallGrid({
             </>
           )}
           <div className="absolute bottom-2 left-2 rounded-sm bg-call/70 px-2 py-0.5 text-xs">
-            {p.name}
+            {i === 0 ? you : p.name}
             <span className="hidden text-call-muted sm:inline"> · {p.role}</span>
           </div>
         </div>
@@ -608,257 +655,50 @@ function IdleGate({
   onSettings: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-20 flex items-end justify-center bg-call/40 p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-2xl bg-card p-6 text-foreground shadow-[var(--shadow-lift)]">
-        <p className="text-xs font-medium uppercase tracking-kicker text-muted-foreground">
+    <div className="absolute inset-0 z-20 flex items-end justify-center bg-call/30 p-4 sm:items-center">
+      <div className="glass-panel w-full max-w-md rounded-[28px] p-6">
+        <p className="text-xs font-medium uppercase tracking-kicker text-glass-muted">
           Start a session
         </p>
-        <h1 className="mt-2 font-display text-3xl tracking-tight">
+        <h1 className="mt-2 font-sans text-3xl font-semibold tracking-tight">
           Invisible to them. Useful to you.
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-sm leading-relaxed text-glass-muted">
           Run a scripted Acme expansion call, or listen with your microphone.
-          Allow the mic when the browser asks
           {hasKey
-            ? `. Using your ${providerShort} key.`
-            : ". Add an API key in Settings to use your own model."}
+            ? ` Using your ${providerShort} key.`
+            : " Add an API key in Settings to use your own model."}
         </p>
         <div className="mt-6 grid gap-2">
           <Button size="lg" onClick={onDemo}>
             <Play />
             Start demo call
           </Button>
-          <Button size="lg" variant="outline" onClick={onMic}>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-white/15 bg-white/8 text-glass-fg hover:bg-white/12"
+            onClick={onMic}
+          >
             <Mic />
             Listen with microphone
           </Button>
-          <Button size="lg" variant="ghost" onClick={onSettings}>
+          <Button
+            size="lg"
+            variant="ghost"
+            className="text-glass-fg hover:bg-white/8"
+            onClick={onSettings}
+          >
             <Settings2 />
-            {hasKey ? "API settings" : "Optional API key"}
+            Settings
           </Button>
         </div>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
+        <p className="mt-4 text-center text-xs text-glass-muted">
           <Keyboard className="mr-1 inline size-3" />
-          ⌘↵ Assist · ⌘\\ Hide overlay
+          ⌘↵ Assist · ⌘\\ Hide · ⌘, Settings
           {speechOk ? " · live captions on" : ""}
         </p>
       </div>
-    </div>
-  );
-}
-
-function AssistOverlay({
-  tab,
-  onTab,
-  lines,
-  interim,
-  busy,
-  action,
-  answer,
-  question,
-  onQuestion,
-  onAssist,
-  hasKey,
-  providerShort,
-}: {
-  tab: OverlayTab;
-  onTab: (t: OverlayTab) => void;
-  lines: TranscriptLine[];
-  interim: string;
-  busy: boolean;
-  action: AssistAction | null;
-  answer: string;
-  question: string;
-  onQuestion: (v: string) => void;
-  onAssist: (a: AssistAction) => void;
-  hasKey: boolean;
-  providerShort: string;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ dx: number; dy: number } | null>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-
-  function onPointerDown(e: React.PointerEvent) {
-    if (window.matchMedia("(max-width: 640px)").matches) return;
-    const el = panelRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    drag.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!drag.current) return;
-    const x = Math.max(8, e.clientX - drag.current.dx);
-    const y = Math.max(8, e.clientY - drag.current.dy);
-    setPos({ x, y });
-  }
-  function onPointerUp() {
-    drag.current = null;
-  }
-
-  const chips: { id: AssistAction; label: string }[] = [
-    { id: "say", label: "What should I say?" },
-    { id: "followups", label: "Follow-ups" },
-    { id: "factcheck", label: "Fact check" },
-    { id: "who", label: "Who is this?" },
-    { id: "recap", label: "Recap" },
-    { id: "notes", label: "Notes" },
-    { id: "email", label: "Email" },
-    { id: "screen", label: "Screen" },
-  ];
-
-  return (
-    <div
-      ref={panelRef}
-      style={
-        pos
-          ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
-          : undefined
-      }
-      className={cn(
-        "fixed z-30 flex max-h-[min(72dvh,38rem)] w-[min(100%-1.5rem,24rem)] flex-col rounded-xl bg-card text-foreground shadow-[var(--shadow-lift)]",
-        pos ? "" : "bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-5 sm:translate-x-0",
-      )}
-    >
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className="flex cursor-grab items-center justify-between gap-2 border-b border-border px-3 py-2 active:cursor-grabbing"
-      >
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-label text-muted-foreground">
-          <GripHorizontal className="size-3.5" />
-          Assist
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs tracking-normal text-muted-foreground">
-            {hasKey ? providerShort : "Live"}
-          </span>
-        </div>
-        <div className="flex rounded-md bg-muted p-0.5">
-          <button
-            type="button"
-            onClick={() => onTab("assist")}
-            className={cn(
-              "rounded-sm px-2 py-1 text-xs",
-              tab === "assist" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
-            )}
-          >
-            Assist
-          </button>
-          <button
-            type="button"
-            onClick={() => onTab("transcript")}
-            className={cn(
-              "rounded-sm px-2 py-1 text-xs",
-              tab === "transcript" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
-            )}
-          >
-            Transcript
-          </button>
-        </div>
-      </div>
-
-      {tab === "assist" ? (
-        <>
-          <div className="flex flex-wrap gap-1.5 px-3 pt-3">
-            {chips.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onAssist(c.id)}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs",
-                  action === c.id
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {c.id === "screen" ? <Monitor className="size-3" /> : null}
-                {c.label}
-              </button>
-            ))}
-          </div>
-          <div className="min-h-36 flex-1 overflow-y-auto px-4 py-3">
-            {busy ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Thinking…
-              </p>
-            ) : answer ? (
-              <div>
-                <RichText text={answer} />
-                <button
-                  type="button"
-                  className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(answer);
-                    toast.success("Copied.");
-                  }}
-                >
-                  <Copy className="size-3" />
-                  Copy
-                </button>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Ask about the conversation or the screen. ⌘↵ Assist · ⌘\\ hide.
-              </p>
-            )}
-          </div>
-          <form
-            className="flex gap-2 border-t border-border p-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onAssist("ask");
-            }}
-          >
-            <input
-              value={question}
-              onChange={(e) => onQuestion(e.target.value)}
-              placeholder="Ask about the conversation"
-              className="h-10 flex-1 rounded-md bg-muted px-3 text-sm outline-none placeholder:text-muted-foreground"
-            />
-            <Button type="submit" size="sm" disabled={busy}>
-              <Sparkles />
-              Assist
-            </Button>
-          </form>
-        </>
-      ) : (
-        <TranscriptPane lines={lines} interim={interim} />
-      )}
-    </div>
-  );
-}
-
-function TranscriptPane({
-  lines,
-  interim,
-}: {
-  lines: TranscriptLine[];
-  interim: string;
-}) {
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lines, interim]);
-  return (
-    <div className="min-h-48 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-      {lines.length === 0 && !interim ? (
-        <p className="text-sm text-muted-foreground">Waiting for speech…</p>
-      ) : null}
-      {lines.map((l) => (
-        <div key={l.id}>
-          <p className="text-xs font-medium text-foreground">{l.speaker}</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">{l.text}</p>
-        </div>
-      ))}
-      {interim ? (
-        <div>
-          <p className="text-xs font-medium text-foreground">You</p>
-          <p className="text-sm italic text-muted-foreground">{interim}</p>
-        </div>
-      ) : null}
-      <div ref={endRef} />
     </div>
   );
 }

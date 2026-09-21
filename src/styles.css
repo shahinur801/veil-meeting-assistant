@@ -22,9 +22,19 @@
   --color-ring: #3d6bff;
   --color-destructive: #c4473a;
   --color-destructive-foreground: #ffffff;
-  --color-call: #1a1a18;
-  --color-call-foreground: #f4f3ee;
-  --color-call-muted: #8a8882;
+  --color-call: #0c0c10;
+  --color-call-foreground: #f4f4f5;
+  --color-call-muted: #8b8b93;
+  --color-settings: #0e0e10;
+  --color-settings-foreground: #f4f4f5;
+  --color-settings-muted: #9a9aa3;
+  --color-settings-card: #16161a;
+  --color-settings-tile: #1f1f24;
+  --color-settings-line: rgba(255, 255, 255, 0.08);
+  --color-glass: rgba(20, 20, 24, 0.78);
+  --color-glass-deep: rgba(8, 8, 10, 0.55);
+  --color-glass-fg: #f5f5f7;
+  --color-glass-muted: rgba(245, 245, 247, 0.55);
 
   --tracking-kicker: 0.18em;
   --tracking-label: 0.14em;
@@ -41,6 +51,9 @@
   --shadow-lift:
     0px 0px 0px 1px rgba(26, 26, 24, 0.06),
     0px 12px 32px -12px rgba(26, 26, 24, 0.18);
+  --shadow-glass:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 22px 56px -28px rgba(0, 0, 0, 0.7);
 }
 
 @layer base {
@@ -134,4 +147,24 @@
 }
 .stagger-in > *:nth-child(5) {
   animation-delay: 280ms;
+}
+
+.veil-desk {
+  background:
+    radial-gradient(1100px 640px at 8% -10%, rgba(58, 84, 210, 0.38), transparent 58%),
+    radial-gradient(900px 520px at 96% 8%, rgba(34, 168, 150, 0.28), transparent 52%),
+    radial-gradient(820px 620px at 70% 120%, rgba(210, 92, 48, 0.22), transparent 58%),
+    var(--color-call);
+}
+
+.glass-panel {
+  background: var(--color-glass);
+  color: var(--color-glass-fg);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(28px) saturate(1.45);
+  -webkit-backdrop-filter: blur(28px) saturate(1.45);
+}
+
+.glass-deep {
+  background: var(--color-glass-deep);
 }

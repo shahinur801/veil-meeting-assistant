@@ -20,6 +20,8 @@ export type SpeechResultEvent = {
   }>;
 };
 
+export type MicDevice = { deviceId: string; label: string };
+
 export function getSpeechRecognition(): RecognitionCtor | null {
   if (typeof window === "undefined") return null;
   const w = window as unknown as {
@@ -111,4 +113,65 @@ export function micErrorMessage(err: unknown) {
     return "This window cannot use the microphone. Open Veil in its own tab in Chrome or Edge.";
   }
   return err instanceof Error ? err.message : "Could not open the microphone.";
+}
+
+export function audioConstraints(micId?: string): MediaTrackConstraints {
+  return {
+    echoCancellation: true,
+    noiseSuppression: true,
+    ...(micId ? { deviceId: { ideal: micId } } : {}),
+  };
+}
+
+export async function listMicrophones(): Promise<MicDevice[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  let granted = false;
+  try {
+    const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+    probe.getTracks().forEach((t) => t.stop());
+    granted = true;
+  } catch {
+    /* labels may stay empty */
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const mics = devices
+    .filter((d) => d.kind === "audioinput")
+    .map((d, i) => ({
+      deviceId: d.deviceId,
+      label: d.label || (granted ? `Microphone ${i + 1}` : "Microphone (allow access to name it)"),
+    }));
+  return mics;
+}
+
+export async function startMicMeter(
+  deviceId: string,
+  onLevel: (level: number) => void,
+): Promise<() => void> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: audioConstraints(deviceId || undefined),
+  });
+  const ctx = new AudioContext();
+  const source = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  source.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  let raf = 0;
+  const tick = () => {
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    onLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
+    raf = window.requestAnimationFrame(tick);
+  };
+  raf = window.requestAnimationFrame(tick);
+  return () => {
+    window.cancelAnimationFrame(raf);
+    source.disconnect();
+    void ctx.close();
+    stream.getTracks().forEach((t) => t.stop());
+  };
 }

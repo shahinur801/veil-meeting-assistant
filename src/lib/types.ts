@@ -1,4 +1,5 @@
 import type { ProviderId } from "./providers";
+import type { SessionMode } from "./settings";
 
 export type AssistAction =
   | "say"
@@ -22,6 +23,18 @@ export const ASSIST_ACTIONS: AssistAction[] = [
   "email",
   "screen",
 ];
+
+export const ACTION_LABELS: Record<AssistAction, string> = {
+  say: "What should I say?",
+  followups: "Follow-ups",
+  recap: "Recap",
+  notes: "Notes",
+  ask: "Ask",
+  factcheck: "Fact check",
+  who: "Who is this?",
+  email: "Email",
+  screen: "Screen",
+};
 
 export type TranscriptLine = {
   id: string;
@@ -65,6 +78,8 @@ export type AssistRequest = {
   question?: string;
   transcript: string;
   image?: string;
+  outputLang?: string;
+  sessionMode?: SessionMode;
 };
 
 export type AssistOk = {
@@ -80,3 +95,10 @@ export type AssistErr = {
 };
 
 export type AssistResult = AssistOk | AssistErr;
+
+export type HistoryItem = {
+  id: string;
+  action: AssistAction;
+  question?: string;
+  text: string;
+};

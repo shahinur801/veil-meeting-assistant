@@ -36,6 +36,13 @@ export function deleteMeeting(id: string) {
   write(read().filter((m) => m.id !== id));
 }
 
+export function meetingsThisMonth() {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return listMeetings().filter((m) => m.startedAt >= start.getTime()).length;
+}
+
 export function notesToMarkdown(meeting: SavedMeeting) {
   if (meeting.notesMarkdown) return meeting.notesMarkdown;
   const n = meeting.notes;

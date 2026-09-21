@@ -1,11 +1,12 @@
 import { Fragment } from "react";
+import { cn } from "@/lib/utils";
 
 function inline(text: string, keyPrefix: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={`${keyPrefix}-${i}`} className="font-medium text-foreground">
+        <strong key={`${keyPrefix}-${i}`} className="font-medium text-current">
           {part.slice(2, -2)}
         </strong>
       );
@@ -14,17 +15,17 @@ function inline(text: string, keyPrefix: string) {
   });
 }
 
-export function RichText({ text }: { text: string }) {
+export function RichText({ text, className }: { text: string; className?: string }) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   return (
-    <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+    <div className={cn("space-y-2 text-sm leading-relaxed", className)}>
       {lines.map((line, i) => {
         const t = line.trim();
         if (!t) return <div key={i} className="h-1" />;
         const heading = t.match(/^#{1,3}\s+(.*)/);
         if (heading) {
           return (
-            <p key={i} className="font-medium text-foreground">
+            <p key={i} className="font-medium text-current">
               {inline(heading[1], `h-${i}`)}
             </p>
           );

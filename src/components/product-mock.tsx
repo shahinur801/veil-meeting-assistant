@@ -1,24 +1,11 @@
-import { Pause } from "lucide-react";
+import { CornerDownLeft, Eye, ImageIcon, LayoutGrid } from "lucide-react";
 import { DEMO_PARTICIPANTS } from "@/lib/demo-meeting";
 import { cn } from "@/lib/utils";
 
 export function ProductMock() {
   return (
     <div className="relative">
-      <div className="rounded-2xl bg-call p-2 shadow-[var(--shadow-lift)] sm:p-3">
-        <div className="mb-2 flex items-center justify-between rounded-lg bg-call-foreground/8 px-3 py-2 text-call-foreground">
-          <div className="flex items-center gap-2 text-xs font-medium">
-            <span className="flex size-5 items-center justify-center rounded-full bg-destructive">
-              <Pause className="size-2.5 fill-current" />
-            </span>
-            <Waveform />
-            <span className="font-mono tabular-nums">00:17</span>
-          </div>
-          <div className="hidden items-center gap-3 text-xs text-call-muted sm:flex">
-            <span>Ask AI</span>
-            <span>Show / Hide</span>
-          </div>
-        </div>
+      <div className="veil-desk rounded-2xl p-2 shadow-[var(--shadow-lift)] sm:p-3">
         <div className="grid grid-cols-2 gap-1.5">
           {DEMO_PARTICIPANTS.map((p, i) => (
             <div
@@ -45,25 +32,35 @@ export function ProductMock() {
             </div>
           ))}
         </div>
-      </div>
 
-      <div className="pointer-events-none absolute -bottom-6 left-4 right-4 sm:left-auto sm:right-6 sm:w-80">
-        <div className="pointer-events-auto rounded-xl bg-card/95 p-4 shadow-[var(--shadow-lift)] backdrop-blur-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-label text-muted-foreground">
-              Live insights
+        <div className="pointer-events-none relative z-10 mx-auto mt-3 w-[min(100%,24rem)]">
+          <div className="glass-panel mb-2 rounded-[22px] p-3">
+            <p className="text-xs text-glass-muted">What should I say?</p>
+            <p className="mt-1 text-sm text-glass-fg">
+              “We’ll lock January capacity today, then map SSO as a go / no-go.”
             </p>
-            <span className="text-xs text-muted-foreground">Show transcript</span>
           </div>
-          <p className="mt-3 text-sm font-medium">Meeting introduction</p>
-          <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-            <li>Acme wants 40 → 120 seats by January 6.</li>
-            <li>Okta SSO and EU residency are hard requirements.</li>
-            <li>Budget approved at $84k / year.</li>
-          </ul>
-          <div className="mt-3 border-t border-border pt-3">
-            <p className="text-xs font-medium text-muted-foreground">Actions</p>
-            <p className="mt-1 text-sm">Suggest follow-up questions</p>
+          <div className="glass-panel overflow-hidden rounded-[22px]">
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              <span className="flex-1 text-sm text-glass-muted">Ask or search anything</span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-white/12 text-glass-fg">
+                <CornerDownLeft className="size-3.5" />
+              </span>
+            </div>
+            <div className="glass-deep flex items-center gap-1 px-2 py-1.5 text-glass-fg">
+              <span className="flex size-8 items-center justify-center">
+                <ImageIcon className="size-3.5" />
+              </span>
+              <span className="flex size-8 items-center justify-center">
+                <Eye className="size-3.5" />
+              </span>
+              <span className="flex size-8 items-center justify-center">
+                <LayoutGrid className="size-3.5" />
+              </span>
+              <span className="mx-1 h-4 w-px bg-white/15" />
+              <Waveform />
+              <span className="ml-auto pr-2 text-xs">History</span>
+            </div>
           </div>
         </div>
       </div>
@@ -77,7 +74,7 @@ function Waveform() {
       {[0, 1, 2, 3, 4].map((i) => (
         <span
           key={i}
-          className="w-0.5 origin-bottom rounded-full bg-destructive"
+          className="w-0.5 origin-bottom rounded-full bg-white/80"
           style={{
             height: "12px",
             animation: "veil-wave 1s ease-in-out infinite",

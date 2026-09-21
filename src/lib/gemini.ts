@@ -4,6 +4,8 @@ import {
   PROVIDERS,
   type ProviderId,
 } from "./providers";
+import { languageLabel } from "./languages";
+import { isSessionMode } from "./settings";
 import type { AssistRequest, AssistResult, MeetingNotes } from "./types";
 import { ASSIST_ACTIONS } from "./types";
 
@@ -17,6 +19,23 @@ Rules:
 - Do not mention being an AI unless asked.
 - Never invent attendees, numbers, or commitments that are not in the transcript or screenshot.
 - Write in a calm, professional tone.`;
+
+function systemFor(data: AssistRequest) {
+  const mode = data.sessionMode ?? "meeting";
+  const lang = languageLabel(data.outputLang ?? "en-US");
+  const modeLine =
+    mode === "interview"
+      ? "Session mode: interview. The user is answering questions. Give short, spoken-first answers they can read aloud."
+      : mode === "sales"
+        ? "Session mode: sales. Optimize for discovery, objection handling, and a clear next step."
+        : mode === "coaching"
+          ? "Session mode: coaching. Critique how the user is showing up and what to change next."
+          : "Session mode: meeting. Help the user contribute, recap, and decide.";
+  return `${SYSTEM}
+
+${modeLine}
+Write all answers in ${lang}.`;
+}
 
 function actionPrompt(action: AssistRequest["action"], question?: string) {
   switch (action) {
@@ -90,54 +109,16 @@ function extractJson(text: string): MeetingNotes | undefined {
 
 type ActionItemLike = { owner?: unknown; task?: unknown; due?: unknown };
 
-function userPromptFor(data: AssistRequest) {
-  return `${actionPrompt(data.action, data.question)}
-
-Live transcript:
-${data.transcript || "(no transcript yet)"}`;
-}
-
-function normalizeImage(raw?: string): string | undefined {
-  if (!raw) return undefined;
-  const trimmed = raw.trim();
-  const m = trimmed.match(/^data:image\/(?:jpeg|jpg|png);base64,(.+)$/i);
-  const b64 = (m ? m[1] : trimmed).replace(/\s/g, "");
-  if (b64.length < 32 || b64.length > 800000) return undefined;
-  if (!/^[A-Za-z0-9+/]+=*$/.test(b64)) return undefined;
-  return b64;
-}
-
-function maxTokens(action: AssistRequest["action"]) {
-  return action === "notes" || action === "email" ? 2048 : 1024;
-}
-
-function temperature(action: AssistRequest["action"]) {
-  return action === "notes" ? 0.3 : 0.6;
-}
-
-function okText(text: string, wantNotes: boolean): AssistResult {
-  const notes = wantNotes ? extractJson(text) : undefined;
-  return { ok: true, text, notes };
-}
-
-function emptyAnswer(label: string): AssistResult {
-  return { ok: false, error: `${label} returned an empty answer. Try again.` };
-}
-
-function mapHttpError(
-  status: number,
-  body: string,
-  label: string,
-): AssistResult {
+function mapHttpError(status: number, body: string, label: string): AssistResult {
   const lower = body.toLowerCase();
   if (status === 400 || status === 401 || status === 403) {
     if (
-      status === 401 ||
       lower.includes("api key") ||
       lower.includes("api_key") ||
-      lower.includes("invalid_api_key") ||
+      lower.includes("invalid x-api-key") ||
       lower.includes("incorrect api key") ||
-      lower.includes("authentication")
+      lower.includes("authentication") ||
+      status === 401
     ) {
       return {
         ok: false,
@@ -173,16 +154,47 @@ function mapHttpError(
   };
 }
 
-function openaiContent(
-  content: unknown,
-): string {
+function userPromptFor(data: AssistRequest) {
+  return `${actionPrompt(data.action, data.question)}
+
+Live transcript:
+${data.transcript || "(no transcript yet)"}`;
+}
+
+function normalizeImage(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  const m = trimmed.match(/^data:image\/(?:jpeg|jpg|png);base64,(.+)$/i);
+  const b64 = (m ? m[1] : trimmed).replace(/\s/g, "");
+  if (b64.length < 32 || b64.length > 800000) return undefined;
+  if (!/^[A-Za-z0-9+/]+=*$/.test(b64)) return undefined;
+  return b64;
+}
+
+function emptyAnswer(label: string): AssistResult {
+  return { ok: false, error: `${label} returned an empty answer. Try again.` };
+}
+
+function okText(text: string, wantNotes: boolean): AssistResult {
+  return { ok: true, text, notes: wantNotes ? extractJson(text) : undefined };
+}
+
+function temperature(action: AssistRequest["action"]) {
+  return action === "notes" ? 0.3 : 0.6;
+}
+
+function maxTokens(action: AssistRequest["action"]) {
+  return action === "notes" || action === "email" ? 2048 : 1024;
+}
+
+function openaiContent(content: unknown): string {
   if (typeof content === "string") return content.trim();
   if (Array.isArray(content)) {
     return content
       .map((part) => {
         if (typeof part === "string") return part;
         if (part && typeof part === "object" && "text" in part) {
-          return String((part as { text?: unknown }).text ?? "");
+          return String((part as { text?: string }).text ?? "");
         }
         return "";
       })
@@ -205,14 +217,12 @@ async function callGemini(data: AssistRequest): Promise<AssistResult> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
+        systemInstruction: { parts: [{ text: systemFor(data) }] },
         contents: [{ role: "user", parts }],
         generationConfig: {
           temperature: temperature(data.action),
           maxOutputTokens: maxTokens(data.action),
-          ...(data.action === "notes"
-            ? { responseMimeType: "application/json" }
-            : {}),
+          ...(data.action === "notes" ? { responseMimeType: "application/json" } : {}),
         },
       }),
     });
@@ -236,9 +246,7 @@ async function callGemini(data: AssistRequest): Promise<AssistResult> {
         ?.map((p) => p.text ?? "")
         .join("\n")
         .trim() ?? "";
-    if (!text && json.error?.message) {
-      return { ok: false, error: json.error.message };
-    }
+    if (!text && json.error?.message) return { ok: false, error: json.error.message };
     if (!text) return emptyAnswer("Gemini");
     return okText(text, data.action === "notes");
   } catch {
@@ -276,7 +284,7 @@ async function callOpenAICompat(
         temperature: temperature(data.action),
         max_tokens: maxTokens(data.action),
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: systemFor(data) },
           { role: "user", content: userContent },
         ],
       }),
@@ -331,7 +339,7 @@ async function callAnthropic(data: AssistRequest): Promise<AssistResult> {
         model: data.model,
         max_tokens: maxTokens(data.action),
         temperature: temperature(data.action),
-        system: SYSTEM,
+        system: systemFor(data),
         messages: [{ role: "user", content }],
       }),
     });
@@ -420,28 +428,38 @@ function sanitizeRequest(input: AssistRequest): AssistRequest {
   const transcript = String(input.transcript ?? "").slice(-14000);
   const question = input.question ? String(input.question).slice(0, 2000) : undefined;
   const image = normalizeImage(input.image);
-  return { provider, apiKey, model, action, transcript, question, image };
+  const outputLang = String(input.outputLang ?? "en-US").slice(0, 16);
+  const sessionMode = isSessionMode(input.sessionMode) ? input.sessionMode : "meeting";
+  return {
+    provider,
+    apiKey,
+    model,
+    action,
+    transcript,
+    question,
+    image,
+    outputLang,
+    sessionMode,
+  };
 }
 
 export const runAssist = createServerFn({ method: "POST" })
   .validator((input: AssistRequest) => sanitizeRequest(input))
   .handler(async ({ data }): Promise<AssistResult> => {
     if (data.apiKey) {
-      const result = await callProvider(data);
-      if (result.ok) return result;
-      if (result.code === "key" || result.code === "quota") return result;
+      const primary = await callProvider(data);
+      if (primary.ok) return primary;
+      if (primary.code === "key" || primary.code === "quota") return primary;
     }
     return callHostedGrok(data);
   });
 
 export const testApiKey = createServerFn({ method: "POST" })
-  .validator((input: { provider: ProviderId; apiKey: string; model: string }) => {
+  .validator((input: { provider?: string; apiKey: string; model?: string }) => {
     const apiKey = String(input?.apiKey ?? "").trim();
     if (!apiKey) throw new Error("Missing API key");
     if (apiKey.length > 512) throw new Error("Invalid API key");
-    const provider: ProviderId = isProviderId(input.provider)
-      ? input.provider
-      : "gemini";
+    const provider: ProviderId = isProviderId(input.provider) ? input.provider : "gemini";
     const rawModel = String(input.model ?? "").trim();
     const model = MODEL_RE.test(rawModel)
       ? rawModel
@@ -455,7 +473,7 @@ export const testApiKey = createServerFn({ method: "POST" })
       model: data.model,
       action: "ask",
       question: "Reply with the single word ok.",
-      transcript: "(connection test)",
+      transcript: "",
     };
     if (data.provider === "gemini") {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${data.model}:generateContent?key=${encodeURIComponent(data.apiKey)}`;
@@ -464,9 +482,7 @@ export const testApiKey = createServerFn({ method: "POST" })
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [
-              { role: "user", parts: [{ text: "Reply with the single word ok." }] },
-            ],
+            contents: [{ role: "user", parts: [{ text: "Reply with the single word ok." }] }],
             generationConfig: { maxOutputTokens: 8, temperature: 0 },
           }),
         });
