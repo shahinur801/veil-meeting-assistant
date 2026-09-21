@@ -1,3 +1,5 @@
+import type { ProviderId } from "./providers";
+
 export type AssistAction =
   | "say"
   | "followups"
@@ -8,18 +10,6 @@ export type AssistAction =
   | "who"
   | "email"
   | "screen";
-
-export type GeminiModel =
-  | "gemini-2.5-flash"
-  | "gemini-2.0-flash"
-  | "gemini-2.5-pro";
-
-export const GEMINI_MODELS: { id: GeminiModel; label: string; hint: string }[] =
-  [
-    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", hint: "Fast, recommended" },
-    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", hint: "Stable fallback" },
-    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Deeper reasoning" },
-  ];
 
 export const ASSIST_ACTIONS: AssistAction[] = [
   "say",
@@ -68,8 +58,9 @@ export type SavedMeeting = {
 };
 
 export type AssistRequest = {
+  provider: ProviderId;
   apiKey: string;
-  model: GeminiModel;
+  model: string;
   action: AssistAction;
   question?: string;
   transcript: string;

@@ -12,8 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { GEMINI_MODELS, type GeminiModel } from "@/lib/types";
-import { testGeminiKey } from "@/lib/gemini";
+import { testApiKey } from "@/lib/gemini";
+import {
+  PROVIDER_IDS,
+  PROVIDERS,
+  isProviderId,
+  resolveModel,
+  type ProviderId,
+} from "@/lib/providers";
 import { type Settings } from "@/lib/settings";
 
 export function SettingsDialog({
@@ -29,23 +35,36 @@ export function SettingsDialog({
 }) {
   const [draft, setDraft] = useState(settings);
   const [testing, setTesting] = useState(false);
+  const provider = PROVIDERS[draft.provider];
 
   function syncOpen(next: boolean) {
     if (next) setDraft(settings);
     onOpenChange(next);
   }
 
+  function setProvider(next: ProviderId) {
+    setDraft((prev) => ({
+      ...prev,
+      provider: next,
+      model: resolveModel(next, prev.model),
+    }));
+  }
+
   async function handleTest() {
     if (!draft.apiKey.trim()) {
-      toast.error("Paste a Google Gemini API key first.");
+      toast.error(`Paste a ${provider.short} API key first.`);
       return;
     }
     setTesting(true);
     try {
-      const result = await testGeminiKey({
-        data: { apiKey: draft.apiKey.trim(), model: draft.model },
+      const result = await testApiKey({
+        data: {
+          provider: draft.provider,
+          apiKey: draft.apiKey.trim(),
+          model: draft.model,
+        },
       });
-      if (result.ok) toast.success("Gemini is connected.");
+      if (result.ok) toast.success(`${provider.short} is connected.`);
       else toast.error(result.error);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not test key.");
@@ -58,31 +77,49 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={syncOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Gemini settings</DialogTitle>
+          <DialogTitle>Model settings</DialogTitle>
           <DialogDescription>
-            Veil already runs live assist. Paste a Google Gemini API key only
-            if you want answers from your own Google account. The key stays in
-            this browser.
+            Veil already runs live assist. Paste your own key to route answers
+            through Gemini, OpenAI, Claude, Grok, Groq, or OpenRouter. The key
+            stays in this browser.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="apiKey">Google API key</Label>
+            <Label htmlFor="provider">Provider</Label>
+            <select
+              id="provider"
+              className="flex h-11 w-full rounded-md border border-border bg-card px-3 text-sm"
+              value={draft.provider}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (isProviderId(next)) setProvider(next);
+              }}
+            >
+              {PROVIDER_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {PROVIDERS[id].label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="apiKey">{provider.short} API key</Label>
             <Input
               id="apiKey"
               type="password"
               autoComplete="off"
-              placeholder="AIza…"
+              placeholder={provider.placeholder}
               value={draft.apiKey}
               onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
             />
             <a
-              href="https://aistudio.google.com/apikey"
+              href={provider.keyUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              Get a free key in Google AI Studio
+              {provider.keyHint}
               <ExternalLink className="size-3" />
             </a>
           </div>
@@ -92,11 +129,9 @@ export function SettingsDialog({
               id="model"
               className="flex h-11 w-full rounded-md border border-border bg-card px-3 text-sm"
               value={draft.model}
-              onChange={(e) =>
-                setDraft({ ...draft, model: e.target.value as GeminiModel })
-              }
+              onChange={(e) => setDraft({ ...draft, model: e.target.value })}
             >
-              {GEMINI_MODELS.map((m) => (
+              {provider.models.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.label} — {m.hint}
                 </option>

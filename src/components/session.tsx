@@ -38,6 +38,7 @@ import {
   formatTranscript,
 } from "@/lib/demo-meeting";
 import { runAssist } from "@/lib/gemini";
+import { PROVIDERS } from "@/lib/providers";
 import { saveMeeting } from "@/lib/meetings";
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
 import {
@@ -59,6 +60,7 @@ type OverlayTab = "assist" | "transcript";
 export function SessionApp() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings>({
+    provider: "gemini",
     apiKey: "",
     model: "gemini-2.5-flash",
     lang: "en-US",
@@ -251,6 +253,7 @@ export function SessionApp() {
           const s = settingsRef.current;
           const result = await transcribeChunk({
             data: {
+              provider: s.provider,
               apiKey: s.apiKey,
               lang: s.lang,
               mime: (blob.type || mime || "audio/webm").split(";")[0],
@@ -313,6 +316,7 @@ export function SessionApp() {
       try {
         const result = await runAssist({
           data: {
+            provider: settings.provider,
             apiKey: settings.apiKey,
             model: settings.model,
             action: next,
@@ -384,6 +388,7 @@ export function SessionApp() {
     try {
       const result = await runAssist({
         data: {
+          provider: settings.provider,
           apiKey: settings.apiKey,
           model: settings.model,
           action: "notes",
@@ -484,6 +489,7 @@ export function SessionApp() {
       {mode === "idle" ? (
         <IdleGate
           hasKey={Boolean(settings.apiKey)}
+          providerShort={PROVIDERS[settings.provider].short}
           speechOk={speechOk}
           onDemo={startDemo}
           onMic={() => void startMic()}
@@ -507,6 +513,7 @@ export function SessionApp() {
             else void runAction(a);
           }}
           hasKey={Boolean(settings.apiKey)}
+          providerShort={PROVIDERS[settings.provider].short}
         />
       ) : null}
 
@@ -587,12 +594,14 @@ function CallGrid({
 
 function IdleGate({
   hasKey,
+  providerShort,
   speechOk,
   onDemo,
   onMic,
   onSettings,
 }: {
   hasKey: boolean;
+  providerShort: string;
   speechOk: boolean;
   onDemo: () => void;
   onMic: () => void;
@@ -610,7 +619,9 @@ function IdleGate({
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Run a scripted Acme expansion call, or listen with your microphone.
           Allow the mic when the browser asks
-          {hasKey ? ". Using your Gemini key." : ". Add a Gemini key in Settings if you want Google."}
+          {hasKey
+            ? `. Using your ${providerShort} key.`
+            : ". Add an API key in Settings to use your own model."}
         </p>
         <div className="mt-6 grid gap-2">
           <Button size="lg" onClick={onDemo}>
@@ -623,7 +634,7 @@ function IdleGate({
           </Button>
           <Button size="lg" variant="ghost" onClick={onSettings}>
             <Settings2 />
-            {hasKey ? "Gemini settings" : "Optional Gemini key"}
+            {hasKey ? "API settings" : "Optional API key"}
           </Button>
         </div>
         <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -648,6 +659,7 @@ function AssistOverlay({
   onQuestion,
   onAssist,
   hasKey,
+  providerShort,
 }: {
   tab: OverlayTab;
   onTab: (t: OverlayTab) => void;
@@ -660,6 +672,7 @@ function AssistOverlay({
   onQuestion: (v: string) => void;
   onAssist: (a: AssistAction) => void;
   hasKey: boolean;
+  providerShort: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -717,7 +730,7 @@ function AssistOverlay({
           <GripHorizontal className="size-3.5" />
           Assist
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs tracking-normal text-muted-foreground">
-            {hasKey ? "Gemini" : "Live"}
+            {hasKey ? providerShort : "Live"}
           </span>
         </div>
         <div className="flex rounded-md bg-muted p-0.5">

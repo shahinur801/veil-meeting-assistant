@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { isProviderId, type ProviderId } from "./providers";
 
 export type TranscribeResult =
   | { ok: true; text: string }
@@ -71,17 +72,11 @@ async function transcribeGemini(
 }
 
 async function transcribeXai(
+  apiKey: string,
   mime: string,
   audio: string,
   lang: string,
 ): Promise<TranscribeResult> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) {
-    return {
-      ok: false,
-      error: "Add a Google Gemini API key in Settings to transcribe.",
-    };
-  }
   const buf = Buffer.from(audio, "base64");
   const form = new FormData();
   form.append("model", "grok-voice-transcribe-2.0");
@@ -104,23 +99,127 @@ async function transcribeXai(
   }
 }
 
-export const transcribeChunk = createServerFn({ method: "POST" })
-  .validator((input: { apiKey?: string; lang?: string; mime?: string; audio: string }) => {
-    const audio = String(input?.audio ?? "").replace(/\s/g, "");
-    if (audio.length < 32 || audio.length > 2_000_000) {
-      throw new Error("Invalid audio");
+async function transcribeOpenAICompat(
+  url: string,
+  apiKey: string,
+  model: string,
+  mime: string,
+  audio: string,
+  lang: string,
+  label: string,
+): Promise<TranscribeResult> {
+  const buf = Buffer.from(audio, "base64");
+  const form = new FormData();
+  form.append("model", model);
+  form.append("language", lang);
+  form.append("file", new Blob([buf], { type: mime }), `chunk.${extFor(mime)}`);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: `Could not transcribe with ${label}.` };
     }
-    if (!/^[A-Za-z0-9+/]+=*$/.test(audio)) throw new Error("Invalid audio");
-    const rawMime = String(input?.mime ?? "audio/webm").split(";")[0].trim().toLowerCase();
-    const mime = ALLOWED_MIME.has(rawMime) ? rawMime : "audio/webm";
-    const apiKey = String(input?.apiKey ?? "").trim().slice(0, 200);
-    const lang = langCode(String(input?.lang ?? "en"));
-    return { apiKey, lang, mime, audio };
-  })
+    const json = JSON.parse(raw) as { text?: string };
+    return { ok: true, text: (json.text ?? "").trim() };
+  } catch {
+    return { ok: false, error: `Could not reach ${label} for transcription.` };
+  }
+}
+
+async function transcribeHostedXai(
+  mime: string,
+  audio: string,
+  lang: string,
+): Promise<TranscribeResult> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      error: "Add an API key in Settings to transcribe.",
+    };
+  }
+  return transcribeXai(apiKey, mime, audio, lang);
+}
+
+async function transcribeWithProvider(
+  provider: ProviderId,
+  apiKey: string,
+  mime: string,
+  audio: string,
+  lang: string,
+): Promise<TranscribeResult | null> {
+  switch (provider) {
+    case "gemini":
+      return transcribeGemini(apiKey, mime, audio);
+    case "openai":
+      return transcribeOpenAICompat(
+        "https://api.openai.com/v1/audio/transcriptions",
+        apiKey,
+        "whisper-1",
+        mime,
+        audio,
+        lang,
+        "OpenAI",
+      );
+    case "groq":
+      return transcribeOpenAICompat(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        apiKey,
+        "whisper-large-v3",
+        mime,
+        audio,
+        lang,
+        "Groq",
+      );
+    case "xai":
+      return transcribeXai(apiKey, mime, audio, lang);
+    case "anthropic":
+    case "openrouter":
+      return null;
+  }
+}
+
+export const transcribeChunk = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      provider?: ProviderId;
+      apiKey?: string;
+      lang?: string;
+      mime?: string;
+      audio: string;
+    }) => {
+      const audio = String(input?.audio ?? "").replace(/\s/g, "");
+      if (audio.length < 32 || audio.length > 2_000_000) {
+        throw new Error("Invalid audio");
+      }
+      if (!/^[A-Za-z0-9+/]+=*$/.test(audio)) throw new Error("Invalid audio");
+      const rawMime = String(input?.mime ?? "audio/webm")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+      const mime = ALLOWED_MIME.has(rawMime) ? rawMime : "audio/webm";
+      const apiKey = String(input?.apiKey ?? "").trim().slice(0, 512);
+      const lang = langCode(String(input?.lang ?? "en"));
+      const provider: ProviderId = isProviderId(input?.provider)
+        ? input.provider
+        : "gemini";
+      return { provider, apiKey, lang, mime, audio };
+    },
+  )
   .handler(async ({ data }): Promise<TranscribeResult> => {
     if (data.apiKey) {
-      const gemini = await transcribeGemini(data.apiKey, data.mime, data.audio);
-      if (gemini.ok) return gemini;
+      const own = await transcribeWithProvider(
+        data.provider,
+        data.apiKey,
+        data.mime,
+        data.audio,
+        data.lang,
+      );
+      if (own?.ok) return own;
     }
-    return transcribeXai(data.mime, data.audio, data.lang);
+    return transcribeHostedXai(data.mime, data.audio, data.lang);
   });

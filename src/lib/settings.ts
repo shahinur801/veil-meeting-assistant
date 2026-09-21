@@ -1,14 +1,20 @@
-import type { GeminiModel } from "./types";
+import {
+  isProviderId,
+  resolveModel,
+  type ProviderId,
+} from "./providers";
 
 const KEY = "veil.settings.v1";
 
 export type Settings = {
+  provider: ProviderId;
   apiKey: string;
-  model: GeminiModel;
+  model: string;
   lang: string;
 };
 
 const DEFAULTS: Settings = {
+  provider: "gemini",
   apiKey: "",
   model: "gemini-2.5-flash",
   lang: "en-US",
@@ -20,14 +26,11 @@ export function loadSettings(): Settings {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<Settings>;
+    const provider = isProviderId(parsed.provider) ? parsed.provider : DEFAULTS.provider;
     return {
+      provider,
       apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
-      model:
-        parsed.model === "gemini-2.0-flash" ||
-        parsed.model === "gemini-2.5-pro" ||
-        parsed.model === "gemini-2.5-flash"
-          ? parsed.model
-          : DEFAULTS.model,
+      model: resolveModel(provider, parsed.model),
       lang: typeof parsed.lang === "string" ? parsed.lang : DEFAULTS.lang,
     };
   } catch {

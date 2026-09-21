@@ -1,6 +1,7 @@
 {
   "name": "veil-meeting-assistant",
   "private": true,
+  "license": "MIT",
   "sideEffects": false,
   "type": "module",
   "overrides": {

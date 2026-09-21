@@ -13,7 +13,9 @@ Same job as a desktop meeting copilot: listen on your side of the call, transcri
 - Follow-up email
 - Ask about the conversation or the screen
 
-Assist is live in this preview. On your own Mac or VM, paste a [Google Gemini API key](https://aistudio.google.com/apikey) in Settings.
+Assist is live in this preview. On your own Mac or VM, paste an API key in Settings — **Gemini, OpenAI, Anthropic, xAI, Groq, or OpenRouter**.
+
+**License:** [MIT](LICENSE). Public and open source at [github.com/shahinur801/veil-meeting-assistant](https://github.com/shahinur801/veil-meeting-assistant).
 
 ## Use it here
 
@@ -22,6 +24,21 @@ Assist is live in this preview. On your own Mac or VM, paste a [Google Gemini AP
 3. End the session to save notes on this device.
 
 Never joins as a meeting bot. Share only the Zoom / Meet / Teams window, not Veil.
+
+## Bring your own key
+
+Settings → pick a provider → paste the key. It stays in this browser.
+
+| Provider | Where to get a key |
+| --- | --- |
+| Google Gemini | [AI Studio](https://aistudio.google.com/apikey) |
+| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| Anthropic Claude | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| xAI Grok | [console.x.ai](https://console.x.ai/) |
+| Groq | [console.groq.com/keys](https://console.groq.com/keys) |
+| OpenRouter | [openrouter.ai/keys](https://openrouter.ai/keys) |
+
+No key? The hosted preview still runs live assist. Local installs need one of the keys above.
 
 ## Install on a local Mac
 
@@ -35,7 +52,7 @@ npm install
 npm run dev
 ```
 
-Open Chrome at `http://localhost:8080`. Allow the microphone. Add your Gemini key in Settings.
+Open Chrome at `http://localhost:8080`. Allow the microphone. Add any supported API key in Settings.
 
 ## Install in a virtual machine
 
@@ -71,7 +88,16 @@ npm run dev
 
 ## Stack
 
-TanStack Start, React 19, Tailwind CSS. Notes stay in `localStorage`. Assist uses your Gemini key when present, otherwise the live model in this hosted preview.
+TanStack Start, React 19, Tailwind CSS. Notes stay in `localStorage`. Assist uses your key when present, otherwise the live model in this hosted preview.
+
+## Contribute
+
+Issues and pull requests are welcome.
+
+1. Fork the repo and clone your fork.
+2. `npm install` then `npm run dev`.
+3. Keep keys in Settings / localStorage — never commit `.env` or API keys.
+4. Open a PR against `main` with a short description of the change.
 
 ## Repo
 

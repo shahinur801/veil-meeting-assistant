@@ -33,8 +33,8 @@ const faqs = [
     a: "Anyone who has to think on their feet: sales, customer success, recruiting, fundraising, interviews, and internal reviews. If you have ever wished for a private second brain during a call, it is for you.",
   },
   {
-    q: "Do I need a Google API key?",
-    a: "No. Assist is live out of the box here. On your own Mac or VM, paste a free Gemini key from Google AI Studio in Settings so answers run on your account.",
+    q: "Do I need an API key?",
+    a: "No. Assist is live out of the box here. On your own Mac or VM, paste a key from Gemini, OpenAI, Anthropic, xAI, Groq, or OpenRouter in Settings so answers run on your account.",
   },
   {
     q: "How is it undetectable?",
@@ -46,11 +46,11 @@ const faqs = [
   },
   {
     q: "Can I run it on my Mac or a virtual machine?",
-    a: "Yes. Open Install for the Mac and VM steps. Same product: overlay, live assist, notes. Chrome or Edge, plus a Gemini key on your machine.",
+    a: "Yes. Open Install for the Mac and VM steps. Same product: overlay, live assist, notes. Chrome or Edge, plus any supported API key on your machine.",
   },
   {
     q: "Is anything stored in the cloud?",
-    a: "Notes and transcripts stay in your browser. Assist calls go to the live model — or to Google Gemini if you added your own key. Veil never stores the meeting.",
+    a: "Notes and transcripts stay in your browser. Assist calls go to the live model — or to the provider whose key you added. Veil never stores the meeting.",
   },
 ];
 
@@ -111,16 +111,8 @@ export function LandingPage() {
               </Button>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Works instantly. Optionally bring your own{" "}
-              <a
-                className="underline underline-offset-4 hover:text-foreground"
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Google Gemini key
-              </a>
-              .
+              Works instantly. Optionally bring your own key — Gemini, OpenAI,
+              Claude, Grok, Groq, or OpenRouter.
             </p>
           </div>
           <ProductMock />
@@ -205,7 +197,7 @@ export function LandingPage() {
                   {
                     icon: Sparkles,
                     title: "Your model",
-                    body: "Assist is live immediately. Paste a Gemini key in Settings only if you want Google to generate the replies.",
+                    body: "Assist is live immediately. Paste a Gemini, OpenAI, Claude, Grok, Groq, or OpenRouter key in Settings to use your own account.",
                   },
                 ].map((item) => (
                   <li key={item.title} className="flex gap-3">
@@ -361,7 +353,7 @@ export function LandingPage() {
             {
               stat: "Live",
               label: "Instant assist",
-              body: "Answers during the call. Use the built-in model, or route through your Gemini key.",
+              body: "Answers during the call. Use the built-in model, or route through your own API key.",
             },
             {
               stat: "On-device",
@@ -419,7 +411,7 @@ export function LandingPage() {
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:px-6">
           <Logo />
-          <p>Bring your own Google Gemini key, or use live assist as-is. Meetings stay on this device.</p>
+          <p>Bring your own API key, or use live assist as-is. Open source under MIT.</p>
           <a
             href="https://github.com/shahinur801/veil-meeting-assistant"
             target="_blank"

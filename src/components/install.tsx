@@ -130,16 +130,9 @@ export function InstallPage() {
               <p className="font-medium">3. Open Chrome</p>
               <p className="mt-1 text-muted-foreground">
                 Go to <span className="font-mono text-foreground">http://localhost:8080</span>.
-                Allow the microphone. In Settings, paste a{" "}
-                <a
-                  className="underline underline-offset-4"
-                  href="https://aistudio.google.com/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Google Gemini API key
-                </a>{" "}
-                so assist runs on your machine.
+                Allow the microphone. In Settings, paste a Gemini, OpenAI,
+                Anthropic, xAI, Groq, or OpenRouter API key so assist runs on
+                your machine.
               </p>
             </li>
             <li>
@@ -253,7 +246,7 @@ export function InstallPage() {
         </section>
 
         <p className="mt-10 text-sm text-muted-foreground">
-          Source:{" "}
+          Open source (MIT):{" "}
           <a
             className="underline underline-offset-4 hover:text-foreground"
             href="https://github.com/shahinur801/veil-meeting-assistant"
