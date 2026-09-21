@@ -11,3 +11,4 @@ artifacts
 .grok/app-env.json
 .grok/og-pending
 .grok/*.tmp
+.grok/*.jpg.tmp

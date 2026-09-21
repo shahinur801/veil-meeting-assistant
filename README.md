@@ -10,7 +10,7 @@ Veil listens on your side of the call, transcribes in real time, and helps in th
 - Structured meeting notes
 - Free-form questions about the conversation
 
-Assist runs live out of the box. Optionally paste a [Google Gemini API key](https://aistudio.google.com/apikey) in Settings to route answers through your own Google account.
+Assist is live out of the box. Optionally paste a [Google Gemini API key](https://aistudio.google.com/apikey) in Settings to route answers through your own Google account.
 
 ## Use it
 
@@ -18,8 +18,12 @@ Assist runs live out of the box. Optionally paste a [Google Gemini API key](http
 2. Press **Assist** or `Cmd/Ctrl + Enter`.
 3. End the session to save notes on this device.
 
-Microphone transcription uses the browser speech engine. Veil never joins as a meeting bot.
+Microphone transcription uses the browser speech engine. Screen-share remains undetectable because Veil never joins as a meeting bot.
 
-## Repository
+## Stack
 
-https://github.com/shahinur801/veil-meeting-assistant
+TanStack Start, React 19, Tailwind CSS. Notes stay in `localStorage`. Assist calls a server function that uses your Gemini key when present, otherwise the live model.
+
+## Repo
+
+[github.com/shahinur801/veil-meeting-assistant](https://github.com/shahinur801/veil-meeting-assistant)

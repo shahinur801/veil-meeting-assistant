@@ -1,0 +1,375 @@
+import { Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  EyeOff,
+  Keyboard,
+  Mic,
+  MonitorOff,
+  Move,
+  Sparkles,
+} from "lucide-react";
+import { Logo } from "@/components/logo";
+import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { ProductMock } from "@/components/product-mock";
+
+const tools = ["Zoom", "Meet", "Teams", "Webex", "Slack"];
+
+const faqs = [
+  {
+    q: "Why real-time instead of a regular notetaker?",
+    a: "Most notetakers join the call, listen, and email you a summary after. Veil stays on your side of the glass — it transcribes as people talk and answers the question you are about to be asked, while you are still in the room.",
+  },
+  {
+    q: "Who is Veil for?",
+    a: "Anyone who has to think on their feet: sales, customer success, recruiting, fundraising, interviews, and internal reviews. If you have ever wished for a private second brain during a call, it is for you.",
+  },
+  {
+    q: "Do I need a Google API key?",
+    a: "No. Assist is live out of the box. Optionally paste a free Gemini key from Google AI Studio in Settings to route answers through your own Google account.",
+  },
+  {
+    q: "How is it undetectable?",
+    a: "Veil never joins as a meeting bot, so it never appears on the guest list. The overlay is a local window on your machine — it does not render into screen shares or recordings the way a browser tab would.",
+  },
+  {
+    q: "What languages and apps are supported?",
+    a: "Live transcription uses your browser’s speech engine (Chrome works best) and can run in a dozen languages. Assist follows the conversation in the language you are speaking. It sits beside Zoom, Meet, Teams, Webex, or Slack — it does not need a bot invite.",
+  },
+  {
+    q: "Is anything stored in the cloud?",
+    a: "Notes and transcripts stay in your browser. Assist calls go to the live model — or to Google Gemini if you added your own key. Veil never stores the meeting.",
+  },
+];
+
+export function LandingPage() {
+  return (
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link to="/" aria-label="Veil home">
+            <Logo />
+          </Link>
+          <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+            <a href="#how" className="hover:text-foreground">
+              How it works
+            </a>
+            <a href="#notes" className="hover:text-foreground">
+              Notes
+            </a>
+            <a href="#undetectable" className="hover:text-foreground">
+              Undetectable
+            </a>
+            <Link to="/notes" className="hover:text-foreground">
+              Archive
+            </Link>
+          </nav>
+          <Button asChild size="sm">
+            <Link to="/app">
+              Open the app
+              <ArrowRight />
+            </Link>
+          </Button>
+        </div>
+      </header>
+
+      <main>
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:py-20">
+          <div className="stagger-in max-w-xl">
+            <p className="text-xs font-medium uppercase tracking-kicker text-muted-foreground">
+              Undetectable · Live assist
+            </p>
+            <h1 className="mt-4 font-display text-5xl leading-tight tracking-tight text-foreground sm:text-6xl">
+              Meeting intelligence that helps during the call.
+            </h1>
+            <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
+              Veil takes perfect notes and gives real-time answers — without
+              ever joining the meeting.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Button asChild size="lg">
+                <Link to="/app">
+                  Open the app
+                  <ArrowRight />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <a href="#how">See how it works</a>
+              </Button>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Assist is live out of the box. Optionally route through your own{" "}
+              <a
+                className="underline underline-offset-4 hover:text-foreground"
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Google Gemini key
+              </a>
+              .
+            </p>
+          </div>
+          <ProductMock />
+        </section>
+
+        <section
+          id="how"
+          className="border-t border-border bg-card/60 py-20"
+        >
+          <div className="mx-auto grid max-w-6xl gap-16 px-4 sm:px-6 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-kicker text-muted-foreground">
+                During the call
+              </p>
+              <h2 className="mt-3 font-display text-4xl tracking-tight">
+                Veil listens in to the conversation.
+              </h2>
+              <p className="mt-4 text-muted-foreground leading-relaxed">
+                It picks up context in real time — names, numbers, objections —
+                so it can help the moment you need it. Hit Assist, or press
+                Cmd/Ctrl + Enter.
+              </p>
+              <ul className="mt-8 space-y-4">
+                {[
+                  {
+                    icon: Mic,
+                    title: "Live transcription",
+                    body: "Browser speech recognition, or a scripted demo if you just want to try the overlay.",
+                  },
+                  {
+                    icon: Keyboard,
+                    title: "Instant assist",
+                    body: "What should I say, follow-up questions, recap, or a free-form ask about the call.",
+                  },
+                  {
+                    icon: Sparkles,
+                    title: "Live answers",
+                    body: "Assist is live immediately. Paste a Gemini key in Settings only if you want Google to generate the replies.",
+                  },
+                ].map((item) => (
+                  <li key={item.title} className="flex gap-3">
+                    <span className="mt-0.5 flex size-9 items-center justify-center rounded-md bg-muted text-foreground">
+                      <item.icon className="size-4" />
+                    </span>
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl bg-call p-3 text-call-foreground shadow-[var(--shadow-lift)]">
+              <div className="rounded-xl bg-call-foreground/5 p-5">
+                <p className="text-xs uppercase tracking-label text-call-muted">
+                  Assist · ⌘↵
+                </p>
+                <p className="mt-3 text-lg font-medium">What should I say?</p>
+                <div className="mt-4 space-y-3 text-sm leading-relaxed text-call-foreground/85">
+                  <p>
+                    <span className="text-call-muted">1.</span> Hold the date —
+                    January 6 is possible if we freeze scope today.
+                  </p>
+                  <p>
+                    <span className="text-call-muted">2.</span> Offer a three-year
+                    number under the eighty-four thousand cap.
+                  </p>
+                  <p>
+                    <span className="text-call-muted">3.</span> Promise Maya a
+                    sandbox tenant this week so security is not the slip.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="notes" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-kicker text-muted-foreground">
+              After, if you want
+            </p>
+            <h2 className="mt-3 font-display text-4xl tracking-tight">
+              Instant meeting notes.
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              The easiest way to get beautiful, shareable notes — title,
+              decisions, action items, open questions — generated from the live
+              transcript and saved on this device.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                k: "Summary",
+                v: "Acme wants 80 extra seats by 6 January. Okta SSO and EU residency are blockers. Budget is $84k.",
+              },
+              {
+                k: "Decisions",
+                v: "Freeze scope today. Confirm Okta + EU on Business. Send a short order form, not a 12-page MSA.",
+              },
+              {
+                k: "Actions",
+                v: "You: proposal + workshop this week. Maya: security review once the sandbox is live.",
+              },
+            ].map((card) => (
+              <article
+                key={card.k}
+                className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]"
+              >
+                <p className="text-xs font-medium uppercase tracking-label text-muted-foreground">
+                  {card.k}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed">{card.v}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="undetectable"
+          className="border-y border-border bg-card/60 py-20"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <h2 className="font-display text-4xl tracking-tight">
+              Undetectable in every way.
+            </h2>
+            <p className="mt-3 max-w-xl text-muted-foreground">
+              A suite of habits so you can use Veil without a trace on the guest
+              list, the recording, or the shared screen.
+            </p>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  icon: EyeOff,
+                  title: "Doesn't join meetings",
+                  body: "Veil never joins as a bot. No extra person on the guest list, no 'notetaker from…' banner.",
+                },
+                {
+                  icon: MonitorOff,
+                  title: "Invisible to screen share",
+                  body: "The overlay is a local window. Keep it off the display you are sharing.",
+                },
+                {
+                  icon: Move,
+                  title: "Follows your eyes",
+                  body: "The assist panel is fully movable, so you can park it where you are already looking.",
+                },
+                {
+                  icon: Sparkles,
+                  title: "Compatible with every tool",
+                  body: "Works beside the tools you already use. No install, no bot invite, no admin approval.",
+                },
+              ].map((f) => (
+                <article
+                  key={f.title}
+                  className="flex gap-4 rounded-xl bg-background p-5 shadow-[var(--shadow-border)]"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                    <f.icon className="size-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-medium">{f.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {f.body}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="mt-8 flex flex-wrap gap-2">
+              {tools.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full bg-background px-3 py-1.5 text-sm text-muted-foreground shadow-[var(--shadow-border)]"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto grid max-w-6xl gap-6 px-4 py-20 sm:grid-cols-3 sm:px-6">
+          {[
+            {
+              stat: "12+",
+              label: "Languages",
+              body: "English, Spanish, Chinese, and more — via the browser’s live speech engine.",
+            },
+            {
+              stat: "Live",
+              label: "Instant assist",
+              body: "Answers during the call. Use the built-in model, or route through your Gemini key.",
+            },
+            {
+              stat: "On-device",
+              label: "Notes archive",
+              body: "Transcripts and notes never leave this browser unless you copy them out.",
+            },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="font-display text-5xl tracking-tight">{s.stat}</p>
+              <p className="mt-2 font-medium">{s.label}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="border-t border-border py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <h2 className="font-display text-4xl tracking-tight">
+              Frequently asked questions
+            </h2>
+            <Accordion type="single" collapsible className="mt-8">
+              {faqs.map((f) => (
+                <AccordionItem key={f.q} value={f.q}>
+                  <AccordionTrigger>{f.q}</AccordionTrigger>
+                  <AccordionContent>{f.a}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+
+        <section className="border-t border-border bg-call py-20 text-call-foreground">
+          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+            <h2 className="font-display text-4xl tracking-tight sm:text-5xl">
+              Meeting AI that helps during the call, not after.
+            </h2>
+            <p className="mt-4 text-call-muted">
+              Try Veil on a demo call in the next minute. Assist is already live.
+            </p>
+            <Button asChild size="lg" className="mt-8">
+              <Link to="/app">
+                Open the app
+                <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border py-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:px-6">
+          <Logo />
+          <p>Bring your own Google Gemini key, or use live assist as-is. Meetings stay on this device.</p>
+          <a
+            href="https://github.com/shahinur801/veil-meeting-assistant"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
+            GitHub
+          </a>
+        </div>
+      </footer>
+    </div>
+  );
+}

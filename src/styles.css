@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --color-background: #f4f3ee;
+  --color-foreground: #1a1a18;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1a18;
+  --color-primary: #3d6bff;
+  --color-primary-foreground: #ffffff;
+  --color-muted: #ecebe6;
+  --color-muted-foreground: #6a6964;
+  --color-secondary: #ecebe6;
+  --color-secondary-foreground: #1a1a18;
+  --color-accent: #ecebe6;
+  --color-accent-foreground: #1a1a18;
+  --color-border: #e4e2da;
+  --color-ring: #3d6bff;
+  --color-destructive: #c4473a;
+  --color-destructive-foreground: #ffffff;
+  --color-call: #1a1a18;
+  --color-call-foreground: #f4f3ee;
+  --color-call-muted: #8a8882;
+
+  --tracking-kicker: 0.18em;
+  --tracking-label: 0.14em;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+
+  --shadow-border:
+    0px 0px 0px 1px rgba(26, 26, 24, 0.06),
+    0px 1px 2px -1px rgba(26, 26, 24, 0.06),
+    0px 2px 4px 0px rgba(26, 26, 24, 0.04);
+  --shadow-lift:
+    0px 0px 0px 1px rgba(26, 26, 24, 0.06),
+    0px 12px 32px -12px rgba(26, 26, 24, 0.18);
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-background);
+    color: var(--color-foreground);
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes veil-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes veil-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes veil-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.stagger-in > * {
+  animation: veil-rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-in > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-in > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+.stagger-in > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+.stagger-in > *:nth-child(4) {
+  animation-delay: 210ms;
+}
+.stagger-in > *:nth-child(5) {
+  animation-delay: 280ms;
+}
