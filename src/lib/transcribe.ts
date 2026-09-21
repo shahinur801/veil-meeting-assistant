@@ -1,0 +1,126 @@
+import { createServerFn } from "@tanstack/react-start";
+
+export type TranscribeResult =
+  | { ok: true; text: string }
+  | { ok: false; error: string };
+
+const ALLOWED_MIME = new Set([
+  "audio/webm",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/mp3",
+]);
+
+function extFor(mime: string) {
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mp4")) return "m4a";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  if (mime.includes("wav")) return "wav";
+  return "webm";
+}
+
+function langCode(lang: string) {
+  const base = lang.trim().toLowerCase().split("-")[0] || "en";
+  return base.slice(0, 8);
+}
+
+async function transcribeGemini(
+  apiKey: string,
+  mime: string,
+  audio: string,
+): Promise<TranscribeResult> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "Transcribe the spoken words in this audio. Return only the transcript. If there is no speech, return an empty string.",
+              },
+              { inlineData: { mimeType: mime, data: audio } },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0, maxOutputTokens: 512 },
+      }),
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: "Could not transcribe with Gemini." };
+    }
+    const json = JSON.parse(raw) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text =
+      json.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text ?? "")
+        .join(" ")
+        .trim() ?? "";
+    return { ok: true, text };
+  } catch {
+    return { ok: false, error: "Could not reach Gemini for transcription." };
+  }
+}
+
+async function transcribeXai(
+  mime: string,
+  audio: string,
+  lang: string,
+): Promise<TranscribeResult> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      error: "Add a Google Gemini API key in Settings to transcribe.",
+    };
+  }
+  const buf = Buffer.from(audio, "base64");
+  const form = new FormData();
+  form.append("model", "grok-voice-transcribe-2.0");
+  form.append("language", lang);
+  form.append("file", new Blob([buf], { type: mime }), `chunk.${extFor(mime)}`);
+  try {
+    const res = await fetch("https://api.x.ai/v1/stt", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: "Live transcription failed. Try again." };
+    }
+    const json = JSON.parse(raw) as { text?: string };
+    return { ok: true, text: (json.text ?? "").trim() };
+  } catch {
+    return { ok: false, error: "Could not reach live transcription." };
+  }
+}
+
+export const transcribeChunk = createServerFn({ method: "POST" })
+  .validator((input: { apiKey?: string; lang?: string; mime?: string; audio: string }) => {
+    const audio = String(input?.audio ?? "").replace(/\s/g, "");
+    if (audio.length < 32 || audio.length > 2_000_000) {
+      throw new Error("Invalid audio");
+    }
+    if (!/^[A-Za-z0-9+/]+=*$/.test(audio)) throw new Error("Invalid audio");
+    const rawMime = String(input?.mime ?? "audio/webm").split(";")[0].trim().toLowerCase();
+    const mime = ALLOWED_MIME.has(rawMime) ? rawMime : "audio/webm";
+    const apiKey = String(input?.apiKey ?? "").trim().slice(0, 200);
+    const lang = langCode(String(input?.lang ?? "en"));
+    return { apiKey, lang, mime, audio };
+  })
+  .handler(async ({ data }): Promise<TranscribeResult> => {
+    if (data.apiKey) {
+      const gemini = await transcribeGemini(data.apiKey, data.mime, data.audio);
+      if (gemini.ok) return gemini;
+    }
+    return transcribeXai(data.mime, data.audio, data.lang);
+  });

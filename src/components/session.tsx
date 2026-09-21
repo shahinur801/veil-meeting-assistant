@@ -17,7 +17,6 @@ import {
   Keyboard,
   Loader2,
   Mic,
-  MicOff,
   Monitor,
   Play,
   Settings2,
@@ -41,7 +40,16 @@ import {
 import { runAssist } from "@/lib/gemini";
 import { saveMeeting } from "@/lib/meetings";
 import { loadSettings, saveSettings, type Settings } from "@/lib/settings";
-import { getSpeechRecognition, speechSupported, type SpeechRecognitionLike } from "@/lib/speech";
+import {
+  blobToBase64,
+  getSpeechRecognition,
+  micErrorMessage,
+  pickRecorderMime,
+  recordWindow,
+  speechSupported,
+  type SpeechRecognitionLike,
+} from "@/lib/speech";
+import { transcribeChunk } from "@/lib/transcribe";
 import type { AssistAction, MeetingNotes, TranscriptLine } from "@/lib/types";
 import { cn, formatDuration, uid } from "@/lib/utils";
 
@@ -72,6 +80,10 @@ export function SessionApp() {
   const startedAt = useRef<number | null>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const keepListening = useRef(false);
+  const listenGen = useRef(0);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const runActionRef = useRef<(next: AssistAction, image?: string) => Promise<void>>(
     async () => {},
@@ -127,8 +139,9 @@ export function SessionApp() {
   useEffect(() => {
     return () => {
       keepListening.current = false;
+      listenGen.current += 1;
       recRef.current?.abort();
-      camera?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((t) => t.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -150,68 +163,33 @@ export function SessionApp() {
   };
 
   const startMic = async () => {
-    const Ctor = getSpeechRecognition();
-    if (!Ctor) {
-      toast.error("Live transcription needs Chrome or Edge.");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error("This browser cannot use the microphone.");
       return;
     }
+
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
         video: { facingMode: "user" },
       });
-      setCamera(stream);
     } catch {
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        toast.error("Microphone permission is required to listen.");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+      } catch (err) {
+        toast.error(micErrorMessage(err));
         return;
       }
     }
 
-    const rec = new Ctor();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = settings.lang;
-    rec.onresult = (ev) => {
-      let finalChunk = "";
-      let liveChunk = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const result = ev.results[i];
-        if (result.isFinal) finalChunk += result[0].transcript;
-        else liveChunk += result[0].transcript;
-      }
-      if (finalChunk.trim()) {
-        setLines((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            speaker: "You",
-            text: finalChunk.trim(),
-            atMs: Date.now() - (startedAt.current ?? Date.now()),
-          },
-        ]);
-      }
-      setInterim(liveChunk.trim());
-    };
-    rec.onerror = (ev) => {
-      if (ev.error === "not-allowed") {
-        toast.error("Microphone blocked. Allow it and try again.");
-      }
-    };
-    rec.onend = () => {
-      if (keepListening.current) {
-        try {
-          rec.start();
-        } catch {
-          /* already started */
-        }
-      }
-    };
+    setCamera(stream);
+    streamRef.current = stream;
     keepListening.current = true;
-    recRef.current = rec;
-    rec.start();
+    listenGen.current += 1;
+    const gen = listenGen.current;
     startedAt.current = Date.now();
     setElapsed(0);
     setLines([]);
@@ -219,13 +197,102 @@ export function SessionApp() {
     setAction(null);
     setHidden(false);
     setMode("mic");
+    setInterim("Listening…");
+
+    const Ctor = getSpeechRecognition();
+    if (Ctor) {
+      const rec = new Ctor();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = settingsRef.current.lang;
+      rec.onresult = (ev) => {
+        let liveChunk = "";
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const result = ev.results[i];
+          if (!result.isFinal) liveChunk += result[0].transcript;
+        }
+        if (liveChunk.trim()) setInterim(liveChunk.trim());
+      };
+      rec.onerror = (ev) => {
+        if (ev.error === "not-allowed") {
+          toast.error("Microphone blocked. Allow it and try again.");
+        }
+      };
+      rec.onend = () => {
+        if (keepListening.current && listenGen.current === gen) {
+          try {
+            rec.start();
+          } catch {
+            /* already started */
+          }
+        }
+      };
+      recRef.current = rec;
+      try {
+        rec.start();
+      } catch {
+        /* some browsers throw if start is called twice */
+      }
+    }
+
+    void (async () => {
+      const mime = pickRecorderMime();
+      while (keepListening.current && listenGen.current === gen) {
+        let blob: Blob;
+        try {
+          blob = await recordWindow(stream, mime, 4000);
+        } catch {
+          break;
+        }
+        if (!keepListening.current || listenGen.current !== gen) break;
+        if (blob.size < 2500) continue;
+        try {
+          const audio = await blobToBase64(blob);
+          const s = settingsRef.current;
+          const result = await transcribeChunk({
+            data: {
+              apiKey: s.apiKey,
+              lang: s.lang,
+              mime: (blob.type || mime || "audio/webm").split(";")[0],
+              audio,
+            },
+          });
+          if (!keepListening.current || listenGen.current !== gen) break;
+          const text = result.ok ? result.text.trim() : "";
+          if (
+            text &&
+            text.length > 1 &&
+            !/^(no speech|silence|\(no speech\)|\(silence\))$/i.test(text)
+          ) {
+            setLines((prev) => {
+              const last = prev[prev.length - 1]?.text;
+              if (last === text) return prev;
+              return [
+                ...prev,
+                {
+                  id: uid(),
+                  speaker: "You",
+                  text,
+                  atMs: Date.now() - (startedAt.current ?? Date.now()),
+                },
+              ];
+            });
+            setInterim("");
+          }
+        } catch {
+          /* keep the loop alive */
+        }
+      }
+    })();
   };
 
   const stopListening = () => {
     keepListening.current = false;
-    recRef.current?.stop();
+    listenGen.current += 1;
+    recRef.current?.abort();
     recRef.current = null;
-    camera?.getTracks().forEach((t) => t.stop());
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
     setCamera(null);
     setInterim("");
   };
@@ -542,17 +609,17 @@ function IdleGate({
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Run a scripted Acme expansion call, or listen with your microphone.
-          Assist is live
-          {hasKey ? " on your Gemini key." : " — add a Gemini key in Settings if you want to use Google."}
+          Allow the mic when the browser asks
+          {hasKey ? ". Using your Gemini key." : ". Add a Gemini key in Settings if you want Google."}
         </p>
         <div className="mt-6 grid gap-2">
           <Button size="lg" onClick={onDemo}>
             <Play />
             Start demo call
           </Button>
-          <Button size="lg" variant="outline" onClick={onMic} disabled={!speechOk}>
-            {speechOk ? <Mic /> : <MicOff />}
-            {speechOk ? "Listen with microphone" : "Microphone not supported"}
+          <Button size="lg" variant="outline" onClick={onMic}>
+            <Mic />
+            Listen with microphone
           </Button>
           <Button size="lg" variant="ghost" onClick={onSettings}>
             <Settings2 />
@@ -562,6 +629,7 @@ function IdleGate({
         <p className="mt-4 text-center text-xs text-muted-foreground">
           <Keyboard className="mr-1 inline size-3" />
           ⌘↵ Assist · ⌘\\ Hide overlay
+          {speechOk ? " · live captions on" : ""}
         </p>
       </div>
     </div>
