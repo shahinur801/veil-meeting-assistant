@@ -12,9 +12,14 @@ function NotesLayout() {
           <Link to="/" aria-label="Home">
             <Logo />
           </Link>
-          <Button asChild size="sm">
-            <Link to="/app">Open the app</Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link to="/install" className="text-sm text-muted-foreground hover:text-foreground">
+              Install
+            </Link>
+            <Button asChild size="sm">
+              <Link to="/app">Open the app</Link>
+            </Button>
+          </div>
         </div>
       </header>
       <Outlet />

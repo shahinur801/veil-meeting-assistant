@@ -122,6 +122,10 @@ export function SettingsDialog({
                 ["ja-JP", "Japanese"],
                 ["ko-KR", "Korean"],
                 ["hi-IN", "Hindi"],
+                ["it-IT", "Italian"],
+                ["nl-NL", "Dutch"],
+                ["pl-PL", "Polish"],
+                ["ar-SA", "Arabic"],
               ].map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}

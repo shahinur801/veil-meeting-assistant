@@ -1,4 +1,13 @@
-export type AssistAction = "say" | "followups" | "recap" | "notes" | "ask";
+export type AssistAction =
+  | "say"
+  | "followups"
+  | "recap"
+  | "notes"
+  | "ask"
+  | "factcheck"
+  | "who"
+  | "email"
+  | "screen";
 
 export type GeminiModel =
   | "gemini-2.5-flash"
@@ -11,6 +20,18 @@ export const GEMINI_MODELS: { id: GeminiModel; label: string; hint: string }[] =
     { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", hint: "Stable fallback" },
     { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", hint: "Deeper reasoning" },
   ];
+
+export const ASSIST_ACTIONS: AssistAction[] = [
+  "say",
+  "followups",
+  "recap",
+  "notes",
+  "ask",
+  "factcheck",
+  "who",
+  "email",
+  "screen",
+];
 
 export type TranscriptLine = {
   id: string;
@@ -52,6 +73,7 @@ export type AssistRequest = {
   action: AssistAction;
   question?: string;
   transcript: string;
+  image?: string;
 };
 
 export type AssistOk = {

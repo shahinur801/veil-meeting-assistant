@@ -3,10 +3,13 @@ import {
   ArrowRight,
   EyeOff,
   Keyboard,
+  Mail,
   Mic,
   MonitorOff,
   Move,
+  ScanSearch,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -31,15 +34,19 @@ const faqs = [
   },
   {
     q: "Do I need a Google API key?",
-    a: "No. Assist is live out of the box. Optionally paste a free Gemini key from Google AI Studio in Settings to route answers through your own Google account.",
+    a: "No. Assist is live out of the box here. On your own Mac or VM, paste a free Gemini key from Google AI Studio in Settings so answers run on your account.",
   },
   {
     q: "How is it undetectable?",
-    a: "Veil never joins as a meeting bot, so it never appears on the guest list. The overlay is a local window on your machine — it does not render into screen shares or recordings the way a browser tab would.",
+    a: "Veil never joins as a meeting bot, so it never appears on the guest list. Hide the overlay with Cmd/Ctrl + \\ before you share, and share only the Zoom / Meet / Teams window — not the Veil window.",
   },
   {
     q: "What languages and apps are supported?",
     a: "Live transcription uses your browser’s speech engine (Chrome works best) and can run in a dozen languages. Assist follows the conversation in the language you are speaking. It sits beside Zoom, Meet, Teams, Webex, or Slack — it does not need a bot invite.",
+  },
+  {
+    q: "Can I run it on my Mac or a virtual machine?",
+    a: "Yes. Open Install for the Mac and VM steps. Same product: overlay, live assist, notes. Chrome or Edge, plus a Gemini key on your machine.",
   },
   {
     q: "Is anything stored in the cloud?",
@@ -59,12 +66,12 @@ export function LandingPage() {
             <a href="#how" className="hover:text-foreground">
               How it works
             </a>
-            <a href="#notes" className="hover:text-foreground">
-              Notes
-            </a>
             <a href="#undetectable" className="hover:text-foreground">
               Undetectable
             </a>
+            <Link to="/install" className="hover:text-foreground">
+              Install
+            </Link>
             <Link to="/notes" className="hover:text-foreground">
               Archive
             </Link>
@@ -88,8 +95,9 @@ export function LandingPage() {
               Meeting intelligence that helps during the call.
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-              Veil takes perfect notes and gives real-time answers — without
-              ever joining the meeting.
+              Veil takes perfect notes and gives real-time answers — what to
+              say, fact checks, who you are talking to, follow-up email —
+              without ever joining the meeting.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button asChild size="lg">
@@ -99,11 +107,11 @@ export function LandingPage() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <a href="#how">See how it works</a>
+                <Link to="/install">Install on Mac or VM</Link>
               </Button>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Assist is live out of the box. Optionally route through your own{" "}
+              Works instantly. Optionally bring your own{" "}
               <a
                 className="underline underline-offset-4 hover:text-foreground"
                 href="https://aistudio.google.com/apikey"
@@ -118,9 +126,56 @@ export function LandingPage() {
           <ProductMock />
         </section>
 
+        <section className="border-t border-border bg-card/60 py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <p className="text-xs font-medium uppercase tracking-kicker text-muted-foreground">
+              Four ways we make meetings better
+            </p>
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {[
+                {
+                  icon: Sparkles,
+                  title: "Answers while they are still talking",
+                  body: "Transcript plus an optional look at your screen. What to say, follow-ups, fact check, recap — Cmd/Ctrl + Enter.",
+                },
+                {
+                  icon: Mail,
+                  title: "Instant follow-up emails",
+                  body: "A sendable email from the call: subject, what was agreed, owners, next step. Copy and go.",
+                },
+                {
+                  icon: Users,
+                  title: "Who are you really talking to?",
+                  body: "Role, what they care about, leverage, and risk — from names and what they actually said.",
+                },
+                {
+                  icon: ScanSearch,
+                  title: "Beautiful meeting notes",
+                  body: "Title, decisions, action items, open questions. Saved on this device. Copy as Markdown.",
+                },
+              ].map((item) => (
+                <article
+                  key={item.title}
+                  className="flex gap-4 rounded-xl bg-background p-5 shadow-[var(--shadow-border)]"
+                >
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                    <item.icon className="size-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-medium">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {item.body}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section
           id="how"
-          className="border-t border-border bg-card/60 py-20"
+          className="border-t border-border py-20"
         >
           <div className="mx-auto grid max-w-6xl gap-16 px-4 sm:px-6 lg:grid-cols-2">
             <div>
@@ -133,7 +188,7 @@ export function LandingPage() {
               <p className="mt-4 text-muted-foreground leading-relaxed">
                 It picks up context in real time — names, numbers, objections —
                 so it can help the moment you need it. Hit Assist, or press
-                Cmd/Ctrl + Enter.
+                Cmd/Ctrl + Enter. Hide with Cmd/Ctrl + \\.
               </p>
               <ul className="mt-8 space-y-4">
                 {[
@@ -145,11 +200,11 @@ export function LandingPage() {
                   {
                     icon: Keyboard,
                     title: "Instant assist",
-                    body: "What should I say, follow-up questions, recap, or a free-form ask about the call.",
+                    body: "What should I say, follow-ups, fact check, who is this, recap, notes, email, or ask about the screen.",
                   },
                   {
                     icon: Sparkles,
-                    title: "Live answers",
+                    title: "Your model",
                     body: "Assist is live immediately. Paste a Gemini key in Settings only if you want Google to generate the replies.",
                   },
                 ].map((item) => (
@@ -254,7 +309,7 @@ export function LandingPage() {
                 {
                   icon: MonitorOff,
                   title: "Invisible to screen share",
-                  body: "The overlay is a local window. Keep it off the display you are sharing.",
+                  body: "Hide the overlay (⌘\\) and share only the meeting window — not Chrome, not the whole desktop.",
                 },
                 {
                   icon: Move,
@@ -264,7 +319,7 @@ export function LandingPage() {
                 {
                   icon: Sparkles,
                   title: "Compatible with every tool",
-                  body: "Works beside the tools you already use. No install, no bot invite, no admin approval.",
+                  body: "Works beside Zoom, Meet, Teams, Webex, and Slack. No bot invite, no admin approval.",
                 },
               ].map((f) => (
                 <article
@@ -344,14 +399,19 @@ export function LandingPage() {
               Meeting AI that helps during the call, not after.
             </h2>
             <p className="mt-4 text-call-muted">
-              Try Veil on a demo call in the next minute. Assist is already live.
+              Try Veil on a demo call, or install it on your Mac or a VM.
             </p>
-            <Button asChild size="lg" className="mt-8">
-              <Link to="/app">
-                Open the app
-                <ArrowRight />
-              </Link>
-            </Button>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Button asChild size="lg">
+                <Link to="/app">
+                  Open the app
+                  <ArrowRight />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="call">
+                <Link to="/install">Install guide</Link>
+              </Button>
+            </div>
           </div>
         </section>
       </main>

@@ -10,6 +10,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Copy,
   Eye,
   EyeOff,
   GripHorizontal,
@@ -17,6 +18,7 @@ import {
   Loader2,
   Mic,
   MicOff,
+  Monitor,
   Play,
   Settings2,
   Sparkles,
@@ -25,6 +27,7 @@ import {
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { captureScreenJpeg } from "@/lib/capture";
 import { RichText } from "@/lib/rich-text";
 import {
   DEMO_ASSIST,
@@ -70,7 +73,7 @@ export function SessionApp() {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const keepListening = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const runActionRef = useRef<(next: AssistAction) => Promise<void>>(
+  const runActionRef = useRef<(next: AssistAction, image?: string) => Promise<void>>(
     async () => {},
   );
 
@@ -104,9 +107,16 @@ export function SessionApp() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "\\" || e.code === "Backslash")) {
+        e.preventDefault();
+        if (mode === "idle") return;
+        setHidden((h) => !h);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         if (mode === "idle") return;
+        setHidden(false);
         void runActionRef.current(question.trim() ? "ask" : "say");
       }
     }
@@ -226,20 +236,22 @@ export function SessionApp() {
   );
 
   const runAction = useCallback(
-    async (next: AssistAction) => {
+    async (next: AssistAction, image?: string) => {
       if (!live) return;
       setTab("assist");
       setBusy(true);
       setAction(next);
       setAnswer("");
+      setHidden(false);
       try {
         const result = await runAssist({
           data: {
             apiKey: settings.apiKey,
             model: settings.model,
             action: next,
-            question: next === "ask" ? question : undefined,
+            question: next === "ask" || next === "screen" ? question : undefined,
             transcript: transcriptText,
+            image,
           },
         });
         if (!result.ok) {
@@ -275,6 +287,26 @@ export function SessionApp() {
   );
 
   runActionRef.current = runAction;
+
+  async function captureThenAssist() {
+    try {
+      const image = await captureScreenJpeg();
+      await runAction("screen", image);
+    } catch (err) {
+      if (mode === "demo") {
+        setAction("screen");
+        setAnswer(DEMO_ASSIST.screen.text);
+        setTab("assist");
+        return;
+      }
+      const msg = err instanceof Error ? err.message : "Screen capture cancelled.";
+      if (msg.toLowerCase().includes("denied") || msg.toLowerCase().includes("cancel")) {
+        toast.message("Screen capture cancelled.");
+        return;
+      }
+      toast.error(msg);
+    }
+  }
 
   async function endMeeting() {
     if (!live) return;
@@ -403,9 +435,11 @@ export function SessionApp() {
           answer={answer}
           question={question}
           onQuestion={setQuestion}
-          onAssist={(a) => void runAction(a)}
+          onAssist={(a) => {
+            if (a === "screen") void captureThenAssist();
+            else void runAction(a);
+          }}
           hasKey={Boolean(settings.apiKey)}
-          mode={mode}
         />
       ) : null}
 
@@ -417,6 +451,7 @@ export function SessionApp() {
         >
           <Eye className="size-4" />
           Show Veil
+          <span className="hidden text-muted-foreground sm:inline">⌘\\</span>
         </button>
       ) : null}
 
@@ -508,7 +543,7 @@ function IdleGate({
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Run a scripted Acme expansion call, or listen with your microphone.
           Assist is live
-          {hasKey ? " on your Gemini key." : "."}
+          {hasKey ? " on your Gemini key." : " — add a Gemini key in Settings if you want to use Google."}
         </p>
         <div className="mt-6 grid gap-2">
           <Button size="lg" onClick={onDemo}>
@@ -526,7 +561,7 @@ function IdleGate({
         </div>
         <p className="mt-4 text-center text-xs text-muted-foreground">
           <Keyboard className="mr-1 inline size-3" />
-          Cmd/Ctrl + Enter for Assist
+          ⌘↵ Assist · ⌘\\ Hide overlay
         </p>
       </div>
     </div>
@@ -545,7 +580,6 @@ function AssistOverlay({
   onQuestion,
   onAssist,
   hasKey,
-  mode,
 }: {
   tab: OverlayTab;
   onTab: (t: OverlayTab) => void;
@@ -558,7 +592,6 @@ function AssistOverlay({
   onQuestion: (v: string) => void;
   onAssist: (a: AssistAction) => void;
   hasKey: boolean;
-  mode: Mode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -584,9 +617,13 @@ function AssistOverlay({
 
   const chips: { id: AssistAction; label: string }[] = [
     { id: "say", label: "What should I say?" },
-    { id: "followups", label: "Follow-up questions" },
+    { id: "followups", label: "Follow-ups" },
+    { id: "factcheck", label: "Fact check" },
+    { id: "who", label: "Who is this?" },
     { id: "recap", label: "Recap" },
     { id: "notes", label: "Notes" },
+    { id: "email", label: "Email" },
+    { id: "screen", label: "Screen" },
   ];
 
   return (
@@ -598,7 +635,7 @@ function AssistOverlay({
           : undefined
       }
       className={cn(
-        "fixed z-30 flex max-h-[min(70dvh,36rem)] w-[min(100%-1.5rem,24rem)] flex-col rounded-xl bg-card text-foreground shadow-[var(--shadow-lift)]",
+        "fixed z-30 flex max-h-[min(72dvh,38rem)] w-[min(100%-1.5rem,24rem)] flex-col rounded-xl bg-card text-foreground shadow-[var(--shadow-lift)]",
         pos ? "" : "bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-5 sm:translate-x-0",
       )}
     >
@@ -648,12 +685,13 @@ function AssistOverlay({
                 type="button"
                 onClick={() => onAssist(c.id)}
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-xs",
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs",
                   action === c.id
                     ? "bg-foreground text-background"
                     : "bg-muted text-muted-foreground hover:text-foreground",
                 )}
               >
+                {c.id === "screen" ? <Monitor className="size-3" /> : null}
                 {c.label}
               </button>
             ))}
@@ -665,10 +703,23 @@ function AssistOverlay({
                 Thinking…
               </p>
             ) : answer ? (
-              <RichText text={answer} />
+              <div>
+                <RichText text={answer} />
+                <button
+                  type="button"
+                  className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(answer);
+                    toast.success("Copied.");
+                  }}
+                >
+                  <Copy className="size-3" />
+                  Copy
+                </button>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Ask a question about the conversation, or press ⌘↵ for Assist.
+                Ask about the conversation or the screen. ⌘↵ Assist · ⌘\\ hide.
               </p>
             )}
           </div>

@@ -81,42 +81,29 @@ export function formatTranscript(lines: TranscriptLine[]) {
     .join("\n");
 }
 
-const DEMO_NOTES: MeetingNotes = {
-  title: "Acme × Northwind — Q4 seat expansion",
+export const DEMO_NOTES: MeetingNotes = {
+  title: "Acme × Northwind — Q4 expansion",
   summary:
-    "Acme wants to grow from 40 to 120 seats by 6 January. SSO (Okta) and true EU data residency are blockers. Budget is approved at $84k/year with appetite for a 3-year term. Procurement needs a redline by Friday; legal prefers a short order form plus DPA.",
-  attendees: ["You (Northwind)", "Jordan Hale", "Maya Chen", "Priya Shah"],
+    "Acme wants to grow from 40 to 120 seats by 6 January in the same workspace. Okta SSO and real EU residency are hard requirements. Budget is $84k/year with a preference for a three-year term. Next: freeze scope, send a short order form + DPA, stand up a sandbox, and book a workshop this week.",
+  attendees: ["You", "Jordan Hale (VP Sales)", "Maya Chen (IT)", "Priya Shah (Finance)"],
   keyPoints: [
-    "Expansion: 40 → 120 seats, same workspace, January 6 hard date.",
-    "SSO via Okta is mandatory; EU region must be a real residency option.",
-    "Budget cap $84k annually; 3-year term preferred if unit price improves.",
-    "Security review needs a sandbox tenant before Maya will sign off.",
-    "Legal will stall a long MSA — send order form + DPA instead.",
+    "80 extra seats by 6 January — board-visible onboarding week.",
+    "Okta SSO is day-one, not phase two.",
+    "A third of new seats sit in Frankfurt; EU residency must be real.",
+    "Budget ceiling $84k annually; 3-year term preferred if unit price moves.",
+    "Legal wants a short order form + DPA, not a 12-page MSA.",
+    "Sandbox tenant required before Maya can sign off.",
   ],
   decisions: [
-    "Scope freeze required today to hold the January 6 cutover.",
-    "Northwind to confirm Okta SSO and EU residency on the Business plan.",
+    "Freeze scope today to keep January 6.",
+    "Confirm Okta + EU on Business.",
+    "Send commercial proposal and book a technical workshop this week.",
   ],
   actionItems: [
-    {
-      owner: "You",
-      task: "Send commercial proposal with 1-year and 3-year pricing",
-      due: "This week",
-    },
-    {
-      owner: "You",
-      task: "Book a technical workshop with Maya (Okta + EU residency + sandbox)",
-      due: "This week",
-    },
-    {
-      owner: "You",
-      task: "Deliver a short order form + DPA for redlines",
-      due: "Friday",
-    },
-    {
-      owner: "Maya Chen",
-      task: "Security review once sandbox tenant is live",
-    },
+    { owner: "You", task: "Confirm Okta SSO and EU residency on Business", due: "today" },
+    { owner: "You", task: "Send 1- and 3-year proposal + short order form + DPA", due: "Friday" },
+    { owner: "You", task: "Stand up a sandbox tenant for security review", due: "this week" },
+    { owner: "Jordan Hale", task: "Hold January 6 onboarding week if scope freezes", due: "today" },
   ],
   openQuestions: [
     "Can implementation be staffed to hit January 6 if scope freezes today?",
@@ -164,6 +151,57 @@ export const DEMO_ASSIST: Record<
   notes: {
     text: JSON.stringify(DEMO_NOTES, null, 2),
     notes: DEMO_NOTES,
+  },
+  factcheck: {
+    text: `**Supported**
+- Seat expansion 40 → 120 in January — Jordan said it.
+- Okta SSO is a hard requirement — Maya.
+- ~1/3 of new seats in Frankfurt — Maya.
+- $84k annual budget ceiling — Priya.
+- January 6 onboarding week is the board date — Jordan.
+
+**Unverified — do not treat as closed**
+- That Business tier actually includes Okta + EU residency (you offered to confirm).
+- That implementation can be staffed by January 6 (Jordan asked; you have not proven it).
+- That a sandbox can land this week vs. the last vendor's three weeks.
+
+**Contradicted / risky**
+- Nothing in the transcript contradicts the $84k cap. Do not quote a higher number.`,
+  },
+  who: {
+    text: `**Jordan Hale — VP Sales, Acme**  
+Cares about January 6 and the board. Leverage: he wants this deal on the train. Risk: if you slip the date, you become the story he has to explain.
+
+**Maya Chen — IT**  
+Cares about Okta, real EU residency, and a sandbox for security review. Leverage: she can block sign-off. Risk: last vendor burned her on sandbox timing.
+
+**Priya Shah — Finance**  
+Cares about the $84k ceiling, a 3-year unit price, and a short order form Legal will actually sign. Leverage: budget is approved. Risk: a long MSA dies in procurement.
+
+**How to play it**  
+Freeze scope for Jordan, unblock Maya with a sandbox this week, and send Priya a short commercial pack under $84k.`,
+  },
+  email: {
+    text: `Subject: Acme expansion — proposal, sandbox, and workshop this week
+
+Hi Jordan, Maya, and Priya —
+
+Thank you for the time today. As discussed, we are lining up the 40 → 120 seat expansion for a 6 January cutover, with Okta SSO and real EU residency (Frankfurt seats) in scope.
+
+What we will send this week:
+- Commercial proposal (1-year and 3-year) at or under the $84k annual cap
+- Short order form + DPA for Friday's redline (not a long MSA)
+- Sandbox tenant for Maya's security review
+- Time options for a technical workshop
+
+I will confirm Okta + EU on Business today so we can freeze scope.
+
+Best,`,
+  },
+  screen: {
+    text: `On screen: four-up call with you, Jordan Hale (VP Sales), Maya Chen (IT), and Priya Shah (Finance). Overlay is on your side only.
+
+What to do next: freeze January 6 with Jordan, promise Maya a sandbox this week, and tell Priya the pack will be a short order form under $84k — not a 12-page MSA.`,
   },
 };
 

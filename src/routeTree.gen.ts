@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as InstallRouteImport } from './routes/install'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as NotesIndexRouteImport } from './routes/notes.index'
 import { Route as NotesIdRouteImport } from './routes/notes.$id'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstallRoute = InstallRouteImport.update({
+  id: '/install',
+  path: '/install',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -44,6 +50,7 @@ const NotesIdRoute = NotesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/install': typeof InstallRoute
   '/notes': typeof NotesRouteWithChildren
   '/notes/$id': typeof NotesIdRoute
   '/notes/': typeof NotesIndexRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/install': typeof InstallRoute
   '/notes/$id': typeof NotesIdRoute
   '/notes': typeof NotesIndexRoute
 }
@@ -58,21 +66,24 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/install': typeof InstallRoute
   '/notes': typeof NotesRouteWithChildren
   '/notes/$id': typeof NotesIdRoute
   '/notes/': typeof NotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/notes' | '/notes/$id' | '/notes/'
+  fullPaths: '/' | '/app' | '/install' | '/notes' | '/notes/$id' | '/notes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/notes/$id' | '/notes'
-  id: '__root__' | '/' | '/app' | '/notes' | '/notes/$id' | '/notes/'
+  to: '/' | '/app' | '/install' | '/notes/$id' | '/notes'
+  id:
+    '__root__' | '/' | '/app' | '/install' | '/notes' | '/notes/$id' | '/notes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
+  InstallRoute: typeof InstallRoute
   NotesRoute: typeof NotesRouteWithChildren
 }
 
@@ -90,6 +101,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/install': {
+      id: '/install'
+      path: '/install'
+      fullPath: '/install'
+      preLoaderRoute: typeof InstallRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -131,6 +149,7 @@ const NotesRouteWithChildren = NotesRoute._addFileChildren(NotesRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
+  InstallRoute: InstallRoute,
   NotesRoute: NotesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
